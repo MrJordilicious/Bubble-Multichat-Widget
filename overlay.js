@@ -33,6 +33,7 @@ const cfg = {
   usernameMode:  P.get('usernameMode') || 'usercolor',
   usernameColor: '#' + (P.get('usernameColor') || 'ff7043'),
   avatarSize:    pInt('avatarSize', 54),
+  usernameSize:  pInt('usernameSize', 13), // in px; sits above the message font size
 
   // Behavior
   maxMsg:        pInt('maxMsg',   8),
@@ -91,7 +92,8 @@ root.style.setProperty('--bubble-color',  cfg.bubbleColor);
 root.style.setProperty('--text-color',    cfg.textColor);
 root.style.setProperty('--font-size',     cfg.fontSize + 'px');
 root.style.setProperty('--font-family',   `'${cfg.fontFamily}', 'Nunito', sans-serif`);
-root.style.setProperty('--avatar-size',   cfg.avatarSize + 'px');
+root.style.setProperty('--avatar-size',    cfg.avatarSize + 'px');
+root.style.setProperty('--username-size',  cfg.usernameSize + 'px');
 root.style.setProperty('--chat-x',        cfg.chatX + 'px');
 root.style.setProperty('--chat-y',        cfg.chatY + 'px');
 
@@ -411,10 +413,24 @@ async function onTwitchChat(d) {
   if (!msg.text) return;
   if (shouldFilter(user.login, msg.text)) return;
 
+  // Badge flags can live in different places depending on SB version:
+  // - Newer SB (0.2.x): on d.message (the message object)
+  // - Older SB: directly on d
+  // - Some versions: d.badges array with {type, version} objects
+  const mObj = (typeof d?.message === 'object' && d.message !== null) ? d.message : {};
+  const badges = d?.badges || mObj?.badges || [];
+  const hasBadge = (type) => badges.some?.(b => b?.type?.toLowerCase() === type || b?.name?.toLowerCase() === type);
+
+  const isBroadcaster  = mObj.isBroadcaster  ?? d?.isBroadcaster  ?? hasBadge('broadcaster');
+  const isModerator    = mObj.isModerator    ?? d?.isModerator    ?? hasBadge('moderator');
+  const isSubscriber   = mObj.isSubscribed   ?? mObj.isSubscriber ?? d?.isSubscribed ?? d?.isSubscriber ?? hasBadge('subscriber');
+  const isVip          = mObj.isVip          ?? d?.isVip          ?? hasBadge('vip');
+  const isFirstMessage = mObj.isFirstMessage ?? d?.isFirstMessage ?? false;
+  const bits           = mObj.bits ?? d?.bits ?? 0;
+
   // Shared chat
-  const m = d?.message ?? d ?? {};
-  const isShared   = !!(m.sourceRoomId || m.sourceBroadcasterLogin);
-  const sharedFrom = isShared ? (m.sourceBroadcasterName || m.sourceBroadcasterLogin || '') : '';
+  const isShared   = !!(mObj.sourceRoomId || mObj.sourceBroadcasterLogin || d?.sourceRoomId);
+  const sharedFrom = isShared ? (mObj.sourceBroadcasterName || mObj.sourceBroadcasterLogin || d?.sourceBroadcasterName || '') : '';
   if (isShared && !cfg.showSharedChat) return;
 
   const pronoun = await getPronoun(user.login);
@@ -423,15 +439,15 @@ async function onTwitchChat(d) {
     platform:       'twitch',
     username:       user.displayName,
     userLogin:      user.login,
-    color:          user.color || m.color || null,
+    color:          user.color || mObj.color || d?.color || null,
     text:           msg.text,
     emotes:         msg.emotes,
-    isBroadcaster:  m.isBroadcaster,
-    isModerator:    m.isModerator,
-    isSubscriber:   m.isSubscribed || m.isSubscriber,
-    isVip:          m.isVip,
-    isFirstMessage: m.isFirstMessage,
-    bits:           m.bits || 0,
+    isBroadcaster,
+    isModerator,
+    isSubscriber,
+    isVip,
+    isFirstMessage,
+    bits,
     avatarUrl:      user.avatarUrl,
     pronoun,
     isShared,
@@ -633,7 +649,7 @@ function onHypeEnd(d) {
 
 function _updateHype(level, total, goal) {
   const pct = Math.min(100, Math.round((total / (goal || 1)) * 100));
-  hypeLvl.textContent = `🚂 HYPE TRAIN LEVEL ${level}`;
+  hypeLvl.textContent = `HYPE TRAIN LEVEL ${level}`;
   hypePct.textContent = `${pct}%`;
   hypeBar.style.width = `${pct}%`;
 }

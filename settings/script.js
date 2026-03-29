@@ -55,6 +55,9 @@ function buildURL(demo) {
   const size = $('fontSize')?.value;
   if (size && size !== '15')         q.set('fontSize', size);
 
+  const unSize = $('usernameSize')?.value;
+  if (unSize && unSize !== '13')     q.set('usernameSize', unSize);
+
   const bc = $('bubbleColor')?.value?.replace('#', '');
   if (bc && bc.toUpperCase() !== 'FFF8F0') q.set('bubbleColor', bc);
 
@@ -161,15 +164,16 @@ function wireRange(id, labelId) {
   const el = $(id), lbl = $(labelId);
   if (el && lbl) el.addEventListener('input', () => { lbl.textContent = el.value; updateAll(); });
 }
-wireRange('fontSize',   'fontSizeVal');
-wireRange('avatarSize', 'avatarSizeVal');
-wireRange('maxMsg',     'maxMsgVal');
+wireRange('fontSize',      'fontSizeVal');
+wireRange('usernameSize',  'usernameSizeVal');
+wireRange('avatarSize',    'avatarSizeVal');
+wireRange('maxMsg',        'maxMsgVal');
 
 // ── Wire all inputs ───────────────────────────────
 [
   'wsHost','wsPort','wsPass',
   'ignored','ignoreCmd',
-  'fontFamily','customFont','fontSize','bubbleColor','textColor',
+  'fontFamily','customFont','fontSize','usernameSize','bubbleColor','textColor',
   'usernameMode','usernameColor',
   'avatarSize',
   'maxMsg','msgLife','scrollDir','animIn',
