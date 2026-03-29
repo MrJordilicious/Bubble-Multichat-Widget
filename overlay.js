@@ -33,7 +33,7 @@ const cfg = {
   usernameMode:  P.get('usernameMode') || 'usercolor',
   usernameColor: '#' + (P.get('usernameColor') || 'ff7043'),
   avatarSize:    pInt('avatarSize', 54),
-  usernameSize:  pInt('usernameSize', 13), // in px; sits above the message font size
+  usernameSize:  parseFloat(P.get('usernameSize') ?? 0.85) || 0.85,
 
   // Behavior
   maxMsg:        pInt('maxMsg',   8),
@@ -93,7 +93,7 @@ root.style.setProperty('--text-color',    cfg.textColor);
 root.style.setProperty('--font-size',     cfg.fontSize + 'px');
 root.style.setProperty('--font-family',   `'${cfg.fontFamily}', 'Nunito', sans-serif`);
 root.style.setProperty('--avatar-size',    cfg.avatarSize + 'px');
-root.style.setProperty('--username-size',  cfg.usernameSize + 'px');
+root.style.setProperty('--username-size',  cfg.usernameSize + 'em');
 root.style.setProperty('--chat-x',        cfg.chatX + 'px');
 root.style.setProperty('--chat-y',        cfg.chatY + 'px');
 

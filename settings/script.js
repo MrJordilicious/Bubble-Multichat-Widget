@@ -55,8 +55,8 @@ function buildURL(demo) {
   const size = $('fontSize')?.value;
   if (size && size !== '15')         q.set('fontSize', size);
 
-  const unSize = $('usernameSize')?.value;
-  if (unSize && unSize !== '13')     q.set('usernameSize', unSize);
+  const unSize = parseFloat($('usernameSize')?.value);
+  if (!isNaN(unSize) && unSize !== 0.85) q.set('usernameSize', unSize);
 
   const bc = $('bubbleColor')?.value?.replace('#', '');
   if (bc && bc.toUpperCase() !== 'FFF8F0') q.set('bubbleColor', bc);
@@ -166,12 +166,15 @@ function updateAll() {
 }
 
 // ── Range slider labels ───────────────────────────
-function wireRange(id, labelId) {
+function wireRange(id, labelId, formatter) {
   const el = $(id), lbl = $(labelId);
-  if (el && lbl) el.addEventListener('input', () => { lbl.textContent = el.value; updateAll(); });
+  if (el && lbl) el.addEventListener('input', () => {
+    lbl.textContent = formatter ? formatter(el.value) : el.value;
+    updateAll();
+  });
 }
 wireRange('fontSize',      'fontSizeVal');
-wireRange('usernameSize',  'usernameSizeVal');
+wireRange('usernameSize',  'usernameSizeVal', v => parseFloat(v).toFixed(2));
 wireRange('avatarSize',    'avatarSizeVal');
 wireRange('maxMsg',        'maxMsgVal');
 
