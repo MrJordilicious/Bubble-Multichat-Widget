@@ -93,7 +93,7 @@ root.style.setProperty('--text-color',    cfg.textColor);
 root.style.setProperty('--font-size',     cfg.fontSize + 'px');
 root.style.setProperty('--font-family',   `'${cfg.fontFamily}', 'Nunito', sans-serif`);
 root.style.setProperty('--avatar-size',    cfg.avatarSize + 'px');
-root.style.setProperty('--username-size',  cfg.usernameSize + 'em');
+root.style.setProperty('--username-size',  cfg.usernameSize);
 root.style.setProperty('--chat-x',        cfg.chatX + 'px');
 root.style.setProperty('--chat-y',        cfg.chatY + 'px');
 
