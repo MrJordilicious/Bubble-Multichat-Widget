@@ -56,6 +56,7 @@ const cfg = {
   evSub:         P.get('evSub')        !== 'false',
   evGift:        P.get('evGift')       !== 'false',
   evCheer:       P.get('evCheer')      !== 'false',
+  evBitsCombo:   P.get('evBitsCombo')  !== 'false',
   evFollow:      P.get('evFollow')     !== 'false',
   evRaid:        P.get('evRaid')       !== 'false',
   evYtSuper:     P.get('evYtSuper')    !== 'false',
@@ -295,7 +296,8 @@ function subscribe() {
       Twitch: [
         'ChatMessage',
         'Sub', 'ReSub', 'GiftSub', 'GiftBomb',
-        'Cheer', 'Follow', 'Raid',
+        'Cheer', 'CheerCombo',
+        'Follow', 'Raid',
         'HypeTrainStart', 'HypeTrainUpdate', 'HypeTrainEnd', 'HypeTrainExpire',
       ],
       YouTube: [
@@ -328,7 +330,8 @@ function handleEvent(data) {
       case 'ReSub':           return cfg.showEvents && cfg.evSub    && onReSub(d);
       case 'GiftSub':         return cfg.showEvents && cfg.evGift   && onGiftSub(d);
       case 'GiftBomb':        return cfg.showEvents && cfg.evGift   && onGiftBomb(d);
-      case 'Cheer':           return cfg.showEvents && cfg.evCheer  && onCheer(d);
+      case 'Cheer':           return cfg.showEvents && cfg.evCheer     && onCheer(d);
+      case 'CheerCombo':      return cfg.showEvents && cfg.evBitsCombo && onCheerCombo(d);
       case 'Follow':          return cfg.showEvents && cfg.evFollow && onFollow(d);
       case 'Raid':            return cfg.showEvents && cfg.evRaid   && onRaid(d);
       case 'HypeTrainStart':  return onHypeStart(d);
@@ -351,26 +354,33 @@ function handleEvent(data) {
 
 // ═══════════════════════════════════════════════════
 // STREAMER.BOT DATA HELPERS
-// Extract user info from the various places SB puts it.
-// Priority: d.user (newer SB) → d.message (chat events) → d directly
 // ═══════════════════════════════════════════════════
 function extractUser(d) {
-  // Newer Streamer.bot (0.2.x) wraps user in d.user
-  if (d?.user?.login || d?.user?.displayName) {
+  // Newer Streamer.bot (0.2.x): user wrapped in d.user object
+  if (d?.user && (d.user.login || d.user.displayName || d.user.userId)) {
     return {
       displayName: d.user.displayName || d.user.login || 'Unknown',
-      login:       d.user.login       || d.user.displayName || '',
+      login:       d.user.login       || d.user.userLogin || d.user.displayName || '',
       avatarUrl:   d.user.profileImageUrl || d.user.profile_image_url || '',
       color:       d.user.color || null,
     };
   }
-  // Older SB puts user fields directly on d or inside d.message
-  const src = d?.message || d || {};
+  // Older SB: user fields directly on d itself.
+  // Only use d.message as a user source if it actually has identity fields —
+  // some events (raids, cheers) set d.message to a message object that has
+  // no username, causing displayName to resolve as 'Unknown'.
+  const msgSrc = d?.message;
+  const hasMsgIdentity = msgSrc && (msgSrc.displayName || msgSrc.username || msgSrc.login);
+  const src = hasMsgIdentity ? msgSrc : (d || {});
   return {
-    displayName: src.displayName || src.username || src.login || 'Unknown',
-    login:       src.username    || src.login    || src.displayName || '',
-    avatarUrl:   src.profileImageUrl || src.userProfileImageUrl || '',
-    color:       src.color || null,
+    // Raid events use d.from or d.username; cover all common field names
+    displayName: src.displayName || src.username || src.login || src.userLogin
+              || d?.displayName  || d?.username  || d?.from   || 'Unknown',
+    login:       src.username    || src.login    || src.userLogin || src.from
+              || d?.username     || d?.login     || d?.from   || '',
+    avatarUrl:   src.profileImageUrl || src.userProfileImageUrl
+              || d?.profileImageUrl  || '',
+    color:       src.color || d?.color || null,
   };
 }
 
@@ -526,6 +536,20 @@ function onCheer(d) {
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} cheered ${bits} bits!`,
     body:  msg.text ? `"${esc(msg.text)}"` : '',
+  });
+}
+
+function onCheerCombo(d) {
+  // Bits Combo — multiple viewers combining cheers into a single burst
+  const total    = d.total || d.bits || d.amount || 0;
+  const count    = d.count || d.userCount || d.users || '?';
+  const topUser  = extractUser(d);
+  addEventBubble({
+    icon: '🌟', type: 'cheer', platform: 'twitch',
+    username:  topUser.displayName || 'Chat',
+    avatarUrl: getAvatarUrl('twitch', topUser.login, topUser.avatarUrl),
+    title: `Bits Combo — ${total} bits!`,
+    body:  `${count} viewers joined the combo! 🎉`,
   });
 }
 
@@ -750,7 +774,37 @@ function parseEmotes(text, emotes) {
 }
 
 // ═══════════════════════════════════════════════════
-// DEMO MODE
+// POSTMESSAGE — test commands from the customizer
+// ═══════════════════════════════════════════════════
+window.addEventListener('message', (e) => {
+  const cmd = e.data?.cmd;
+  if (!cmd) return;
+  if (cmd === 'testHype') {
+    let level = 1, prog = 0;
+    hypeEl.classList.remove('hidden');
+    _updateHype(1, 0, 1500);
+    const iv = setInterval(() => {
+      prog += 180;
+      if (prog >= 1500) {
+        prog -= 1500;
+        level++;
+        if (level > 5) { clearInterval(iv); onHypeEnd({ level: 5, total: 1500 }); return; }
+      }
+      _updateHype(level, prog, 1500);
+    }, 250);
+  }
+  if (cmd === 'testEvent') {
+    const type = e.data.type || 'sub';
+    const demos = {
+      sub:       () => onSub({ user:{ displayName:'TestViewer', login:'testviewer' }, subTier:'1000', message:{ message:'Test sub message!' }}),
+      cheer:     () => onCheer({ user:{ displayName:'TestCheer', login:'testcheer' }, bits:500, message:{ message:'Test cheer!' }}),
+      raid:      () => onRaid({ user:{ displayName:'TestRaider', login:'testraider' }, viewerCount:42 }),
+      follow:    () => onFollow({ user:{ displayName:'TestFollower', login:'testfollower' }}),
+      bitscombo: () => onCheerCombo({ total:1250, count:7 }),
+    };
+    demos[type]?.();
+  }
+});
 // ═══════════════════════════════════════════════════
 const DEMO_QUEUE = [
   () => onTwitchChat({ user:{ displayName:'StreamFan99', login:'streamfan99', profileImageUrl:'' }, message:{ message:'POGGERS this overlay is so cute!! 🎮', emotes:[], isSubscribed:true, color:'#FF4D4D' }}),

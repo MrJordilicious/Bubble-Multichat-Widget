@@ -90,7 +90,8 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
   display: flex; flex-direction: column;
   justify-content: flex-end;
   gap: var(--gap);
-  max-height: calc(100vh - var(--chat-y, 20px) * 2);
+  /* Only subtract Y once — the container anchors at the bottom and grows upward */
+  max-height: calc(100vh - var(--chat-y, 20px));
   overflow: hidden; pointer-events: none;
 }
 

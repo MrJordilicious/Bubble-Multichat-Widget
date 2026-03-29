@@ -199,6 +199,25 @@ input:checked + .slider::before     { transform: translateX(22px); }
 .kofi-button img  { height: 22px; }
 .kofi-button:hover { filter: brightness(0.9); }
 
+/* ── Test buttons ─────────────────────────────────── */
+.test-buttons {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 6px; margin-top: 12px; padding: 10px 12px;
+  background: #080c10; border: 1px solid #1e1e1e;
+  border-radius: 8px;
+}
+.test-label {
+  font-size: 0.75em; font-weight: 700; color: #555;
+  width: 100%; margin-bottom: 2px;
+}
+.test-btn {
+  background: #1a1a2e; color: #ccc; border: 1px solid #333;
+  border-radius: 6px; padding: 5px 10px; font-size: 0.78em;
+  cursor: pointer; font-weight: 700; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.test-btn:hover { background: #E5007E; border-color: #E5007E; color: #fff; }
+
 /* ── Divider ──────────────────────────────────── */
 .divider {
   border: none; height: 1px;

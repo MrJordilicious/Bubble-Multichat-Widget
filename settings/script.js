@@ -24,6 +24,13 @@ function getChosenFont() {
   return sel.value;
 }
 
+// ── Test buttons — send postMessage to preview iframe ──
+window.sendTest = function(cmd, type) {
+  const iframe = $('widgetPreview');
+  if (!iframe?.contentWindow) return;
+  iframe.contentWindow.postMessage({ cmd, type }, '*');
+};
+
 // ── Build overlay URL ─────────────────────────────
 function buildURL(demo) {
   const q = new URLSearchParams();
@@ -97,6 +104,7 @@ function buildURL(demo) {
   if (!$('evSub')?.checked)          q.set('evSub', 'false');
   if (!$('evGift')?.checked)         q.set('evGift', 'false');
   if (!$('evCheer')?.checked)        q.set('evCheer', 'false');
+  if (!$('evBitsCombo')?.checked)    q.set('evBitsCombo', 'false');
   if (!$('evFollow')?.checked)       q.set('evFollow', 'false');
   if (!$('evRaid')?.checked)         q.set('evRaid', 'false');
   if (!$('evYtSuper')?.checked)      q.set('evYtSuper', 'false');
@@ -167,7 +175,7 @@ wireRange('maxMsg',     'maxMsgVal');
   'maxMsg','msgLife','scrollDir','animIn',
   'chatSide','chatX','chatY',
   'showPlatform','showBadges','showPronouns',
-  'showEvents','evSub','evGift','evCheer','evFollow','evRaid','evYtSuper','evYtMember',
+  'showEvents','evSub','evGift','evCheer','evBitsCombo','evFollow','evRaid','evYtSuper','evYtMember',
   'showSharedChat',
   'showHypeTrain','hypeX','hypeY',
 ].forEach(id => {

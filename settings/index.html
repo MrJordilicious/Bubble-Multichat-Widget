@@ -336,6 +336,19 @@
 
       <div class="setting-row sub-row">
         <div class="setting-label">
+          <span>🌟 Bits Combos</span>
+          <small style="font-style:italic;font-weight:400">Multiple viewers combining cheers into a burst</small>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evBitsCombo" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
           <span>💜 Follows</span>
         </div>
         <div class="setting-right">
@@ -393,7 +406,7 @@
     <div class="setting-row">
       <div class="setting-label">
         <span>Show shared chat messages:</span>
-        <small>Show messages from other channels in a shared streaming session. They appear with a special <b>📡 from @channel</b> label</small>
+        <small>When you're in a <b>Twitch Shared Chat</b> session with another streamer, their viewers' messages appear in your chat with a <b>📡 from @channel</b> label. This works automatically — you just need to start a Shared Chat session on Twitch. No extra Streamer.bot setup required.</small>
       </div>
       <div class="setting-right">
         <label class="switch">
@@ -436,6 +449,15 @@
           <small>From top edge</small>
           <input type="number" id="hypeY" value="24" min="0" max="1080" />
         </div>
+      </div>
+      <div class="test-buttons">
+        <div class="test-label">Test in preview →</div>
+        <button class="test-btn" onclick="sendTest('testHype')">🚂 Hype Train</button>
+        <button class="test-btn" onclick="sendTest('testEvent','sub')">🎉 Sub</button>
+        <button class="test-btn" onclick="sendTest('testEvent','raid')">🚀 Raid</button>
+        <button class="test-btn" onclick="sendTest('testEvent','cheer')">⭐ Cheer</button>
+        <button class="test-btn" onclick="sendTest('testEvent','bitscombo')">🌟 Bits Combo</button>
+        <button class="test-btn" onclick="sendTest('testEvent','follow')">💜 Follow</button>
       </div>
     </div>
 
