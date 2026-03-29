@@ -93,7 +93,10 @@ root.style.setProperty('--text-color',    cfg.textColor);
 root.style.setProperty('--font-size',     cfg.fontSize + 'px');
 root.style.setProperty('--font-family',   `'${cfg.fontFamily}', 'Nunito', sans-serif`);
 root.style.setProperty('--avatar-size',    cfg.avatarSize + 'px');
-root.style.setProperty('--username-size',  cfg.usernameSize);
+const s = cfg.usernameSize; // e.g. 0.85
+root.style.setProperty('--username-size', s + 'em');
+root.style.setProperty('--pronoun-size',  (s * 0.85).toFixed(3) + 'em');
+root.style.setProperty('--badge-size',    (s * 0.80).toFixed(3) + 'em');
 root.style.setProperty('--chat-x',        cfg.chatX + 'px');
 root.style.setProperty('--chat-y',        cfg.chatY + 'px');
 
