@@ -183,7 +183,7 @@ if (cfg.showPronouns) loadPronounsList();
 // ═══════════════════════════════════════════════════
 // STREAMER.BOT WEBSOCKET
 // ═══════════════════════════════════════════════════
-let ws, reconnectTimer;
+let ws, reconnectTimer, subscribed = false;
 
 function setStatus(state) {
   statusEl.classList.remove('hidden');
@@ -201,50 +201,85 @@ function setStatus(state) {
 
 function connect() {
   clearTimeout(reconnectTimer);
+  subscribed = false;
+
   try { ws = new WebSocket(`ws://${cfg.wsHost}:${cfg.wsPort}/`); }
   catch (_) { scheduleReconnect(); return; }
 
   ws.onerror = () => ws.close();
   ws.onclose = () => { setStatus('disconnected'); scheduleReconnect(); };
 
+  ws.onopen = () => {
+    // Streamer.bot (0.1.x) sends a Connected event message after the socket opens,
+    // and we subscribe inside onmessage when we receive it.
+    // But as a safety net: if no Connected event arrives within 2 seconds we
+    // subscribe anyway — this handles servers that skip the Connected event.
+    setTimeout(() => {
+      if (!subscribed) subscribe();
+    }, 2000);
+  };
+
   ws.onmessage = async (e) => {
     let data;
     try { data = JSON.parse(e.data); } catch (_) { return; }
 
-    // Initial "Connected" event — handle auth if required
-    if (data.event?.type === 'Connected') {
-      const auth = data.data?.authentication;
+    // ── Streamer.bot "Connected" handshake message ──
+    // Sent by Streamer.bot right after the WebSocket opens.
+    // May contain authentication challenge if a password is configured.
+    const isConnectedMsg = (
+      data?.event?.type === 'Connected' ||
+      data?.event?.type === 'Hello' ||
+      // Some versions wrap it differently
+      (data?.data?.version && !data?.event)
+    );
+
+    if (isConnectedMsg && !subscribed) {
+      const auth = data?.data?.authentication;
+
       if (auth && cfg.wsPass) {
+        // Password auth required — compute HMAC response
         setStatus('auth');
         try {
-          const passHash  = await sha256b64(cfg.wsPass + auth.salt);
-          const authToken = await sha256b64(passHash + auth.challenge);
-          ws.send(JSON.stringify({ request: 'Authenticate', authentication: authToken, id: 'auth' }));
-        } catch (_) { subscribe(); } // fall back to no-auth subscribe
+          // Streamer.bot auth: base64(SHA256( base64(SHA256(password + salt)) + challenge ))
+          const secret = await sha256b64(cfg.wsPass + auth.salt);
+          const token  = await sha256b64(secret + auth.challenge);
+          ws.send(JSON.stringify({ request: 'Authenticate', authentication: token, id: 'auth' }));
+        } catch (_) {
+          // If crypto fails for any reason, try subscribing anyway
+          subscribe();
+        }
       } else {
+        // No auth needed — subscribe straight away
         subscribe();
       }
       return;
     }
 
-    // Auth response
-    if (data.id === 'auth') {
-      setStatus('connected');
+    // ── Auth response from Streamer.bot ──
+    if (data?.id === 'auth') {
+      if (data?.status === 'ok' || data?.data?.authenticated === true) {
+        setStatus('connected');
+      }
+      // Subscribe regardless — server will reject events if auth truly failed,
+      // but this avoids leaving the user with a broken silent connection.
       subscribe();
       return;
     }
 
-    // Subscription confirmed
-    if (data.id === 'sub') {
+    // ── Subscription acknowledged ──
+    if (data?.id === 'sub') {
       setStatus('connected');
       return;
     }
 
+    // ── All other messages are chat/event data ──
     handleEvent(data);
   };
 }
 
 function subscribe() {
+  if (subscribed) return;
+  subscribed = true;
   ws.send(JSON.stringify({
     request: 'Subscribe',
     events: {

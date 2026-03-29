@@ -71,16 +71,23 @@ const els = {
   iframe:        $('widgetPreview'),
 };
 
-// ── Auto-detect overlay URL base ─────────────────
-function getOverlayBase() {
+// ── Overlay URL ───────────────────────────────────
+// Smart pre-fill: swap this page's filename for overlay.html.
+// This is correct when both files are in the same folder.
+// If the user put them in different folders they just edit the field.
+function guessOverlayUrl() {
   const loc  = window.location;
-  const path = loc.pathname.replace(/\/[^/]*$/, '/');
-  return loc.origin + path + 'overlay.html';
+  const base = loc.origin + loc.pathname.replace(/\/[^/]*$/, '/');
+  return base + 'overlay.html';
 }
-const OVERLAY_BASE = getOverlayBase();
 
 // ── Helpers ───────────────────────────────────────
 const colorHex = el => el.value.replace('#', '');
+
+function getOverlayBase() {
+  const v = $('overlayUrl')?.value?.trim();
+  return (v && v.startsWith('http')) ? v : guessOverlayUrl();
+}
 
 // ── Build overlay URL ─────────────────────────────
 function buildURL(demo) {
@@ -156,11 +163,27 @@ function buildURL(demo) {
   if (demo) q.set('demo', 'true');
 
   const qs = q.toString();
-  return OVERLAY_BASE + (qs ? '?' + qs : '');
+  const base = getOverlayBase();
+  return base + (qs ? '?' + qs : '');
 }
 
 // ── Update everything ─────────────────────────────
 function updateAll() {
+  // Validate overlay URL field
+  const urlField = $('overlayUrl');
+  const urlHint  = $('urlHint');
+  if (urlField && urlHint) {
+    const v = urlField.value.trim();
+    if (!v) {
+      urlHint.textContent = '⚠ Enter your overlay URL so the generated link is correct.';
+    } else if (!v.startsWith('http')) {
+      urlHint.textContent = '⚠ Must start with https://';
+    } else if (!v.endsWith('overlay.html')) {
+      urlHint.textContent = '⚠ URL should end with overlay.html';
+    } else {
+      urlHint.textContent = '';
+    }
+  }
   // Toggle custom username color visibility
   els.customColorGroup.style.display = els.usernameMode.checked ? 'none' : 'block';
 
@@ -186,6 +209,7 @@ els.maxMsg.addEventListener('input',    () => els.maxMsgVal.textContent     = el
 
 // ── Wire up all inputs ────────────────────────────
 [
+  $('overlayUrl'),
   els.wsHost, els.wsPort, els.wsPass,
   els.ignored, els.ignoreCmd,
   els.fontFamily, els.fontSize, els.bubbleColor, els.textColor,
@@ -213,6 +237,10 @@ els.copyBtn.addEventListener('click', () => {
 
 // ── Initial render ────────────────────────────────
 window.addEventListener('load', () => {
+  // Pre-fill the overlay URL field with a smart guess
+  const urlField = $('overlayUrl');
+  if (urlField && !urlField.value) urlField.value = guessOverlayUrl();
+
   els.customColorGroup.style.display = 'none'; // usernameMode defaults to on
   updateAll();
 });
