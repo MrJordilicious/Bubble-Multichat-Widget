@@ -132,6 +132,8 @@ function buildURL(demo) {
 }
 
 // ── Update UI + preview ───────────────────────────
+let iframeReloadTimer = null;
+
 function updateAll() {
   // Toggle custom username color group
   const customColorGroup = $('customColorGroup');
@@ -146,17 +148,21 @@ function updateAll() {
   // Hype train position group dimming
   const hypePosGrp = $('hypePositionGroup');
   if (hypePosGrp) {
-    hypePosGrp.style.opacity      = $('showHypeTrain')?.checked ? '1' : '0.4';
+    hypePosGrp.style.opacity       = $('showHypeTrain')?.checked ? '1' : '0.4';
     hypePosGrp.style.pointerEvents = $('showHypeTrain')?.checked ? '' : 'none';
   }
 
-  // Update URL
+  // Update the copied URL immediately
   $('result').textContent = buildURL(false);
 
-  // Update preview iframe
-  const iframe   = $('widgetPreview');
-  const demoURL  = buildURL(true);
-  if (iframe && iframe.src !== demoURL) iframe.src = demoURL;
+  // Debounce the iframe reload — wait 600ms after the last change before reloading.
+  // This prevents the preview from restarting on every pixel while dragging a slider.
+  clearTimeout(iframeReloadTimer);
+  iframeReloadTimer = setTimeout(() => {
+    const iframe  = $('widgetPreview');
+    const demoURL = buildURL(true);
+    if (iframe) iframe.src = demoURL;
+  }, 600);
 }
 
 // ── Range slider labels ───────────────────────────
