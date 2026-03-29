@@ -41,9 +41,9 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
 @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
 
 /* ── Hype Train bar ────────────────────────────── */
+/* Position is controlled entirely by inline styles set in overlay.js */
 .hype-train {
-  position: fixed; bottom: 24px; left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
   width: min(480px, 90vw);
   background: linear-gradient(135deg, rgba(88,28,135,0.92), rgba(109,40,217,0.88));
   backdrop-filter: blur(10px);
@@ -55,10 +55,10 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
   transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
 }
 .hype-train.hidden {
-  opacity: 0; transform: translateX(-50%) translateY(40px); pointer-events: none;
+  opacity: 0; pointer-events: none;
+  /* slide up when hidden — JS sets the initial transform */
+  transform: translateY(-30px) !important;
 }
-.hype-train.hype-top { bottom: auto; top: 24px; transform: translateX(-50%); }
-.hype-train.hype-top.hidden { transform: translateX(-50%) translateY(-40px); }
 
 .hype-header {
   display: flex; align-items: center; gap: 8px;
@@ -81,20 +81,25 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
   color: rgba(255,255,255,0.7); font-size: 0.76em; font-weight: 700;
 }
 
-/* ── Chat container — UP (default) ─────────────── */
+/* ── Chat container — anchored via CSS vars ──────── */
 #chat-container {
   position: fixed;
-  bottom: var(--pad); left: var(--pad);
-  width: min(540px, calc(100vw - var(--pad)*2));
+  bottom: var(--chat-y, 20px);
+  left: var(--chat-x, 20px);
+  width: min(540px, calc(100vw - var(--chat-x, 20px) * 2));
   display: flex; flex-direction: column;
   justify-content: flex-end;
   gap: var(--gap);
-  max-height: calc(100vh - var(--pad)*2);
+  max-height: calc(100vh - var(--chat-y, 20px) * 2);
   overflow: hidden; pointer-events: none;
 }
 
 /* RIGHT position */
-#chat-container.pos-right { left: auto; right: var(--pad); align-items: flex-end; }
+#chat-container.pos-right {
+  left: auto;
+  right: var(--chat-x, 20px);
+  align-items: flex-end;
+}
 #chat-container.pos-right .message { flex-direction: row-reverse; }
 #chat-container.pos-right .bubble { border-radius: 20px 20px 5px 20px; }
 #chat-container.pos-right .username-row { flex-direction: row-reverse; padding-left:0; padding-right:6px; }
@@ -103,7 +108,8 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
 
 /* DOWN direction */
 #chat-container.scroll-down {
-  top: var(--pad); bottom: auto;
+  top: var(--chat-y, 20px);
+  bottom: auto;
   justify-content: flex-start;
 }
 

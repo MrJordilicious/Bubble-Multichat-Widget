@@ -9,83 +9,120 @@
 // ═══════════════════════════════════════════════════
 const P = new URLSearchParams(window.location.search);
 
+// Safe int parse: returns null if param missing, otherwise the integer (0 is valid!)
+function pInt(key, def) {
+  const v = P.get(key);
+  return (v !== null && v !== '') ? parseInt(v, 10) : def;
+}
+
 const cfg = {
   // Streamer.bot connection
-  wsHost:        P.get('wsHost')        || '127.0.0.1',
-  wsPort:        P.get('wsPort')        || '7474',
-  wsPass:        P.get('wsPass')        || '',
+  wsHost:        P.get('wsHost')   || '127.0.0.1',
+  wsPort:        P.get('wsPort')   || '8080',
+  wsPass:        P.get('wsPass')   || '',
 
   // Filtering
   ignored:       (P.get('ignored') || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
-  ignoreCmd:     P.get('ignoreCmd')     !== 'false',   // default: true (commands filtered)
+  ignoreCmd:     P.get('ignoreCmd') !== 'false',
 
   // Appearance
-  fontFamily:    P.get('fontFamily')    || 'Nunito',
-  fontSize:      parseInt(P.get('fontSize'))     || 15,
-  bubbleColor:   '#' + (P.get('bubbleColor')    || 'FFF8F0'),
-  textColor:     '#' + (P.get('textColor')      || '3a2f2f'),
-  usernameMode:  P.get('usernameMode')  || 'usercolor',
-  usernameColor: '#' + (P.get('usernameColor')  || 'ff7043'),
-  avatarSize:    parseInt(P.get('avatarSize'))   || 54,
+  fontFamily:    P.get('fontFamily')  || 'Nunito',
+  fontSize:      pInt('fontSize',  15),
+  bubbleColor:   '#' + (P.get('bubbleColor')   || 'FFF8F0'),
+  textColor:     '#' + (P.get('textColor')     || '3a2f2f'),
+  usernameMode:  P.get('usernameMode') || 'usercolor',
+  usernameColor: '#' + (P.get('usernameColor') || 'ff7043'),
+  avatarSize:    pInt('avatarSize', 54),
 
   // Behavior
-  maxMsg:        parseInt(P.get('maxMsg'))       || 8,
-  msgLife:       parseInt(P.get('msgLife'))      || 30,
-  scrollDir:     P.get('scrollDir')     || 'up',    // up | down | horizontal
-  position:      P.get('position')      || 'left',
-  animIn:        P.get('animIn')        || 'bounce',
+  maxMsg:        pInt('maxMsg',   8),
+  msgLife:       pInt('msgLife', 30),   // 0 = forever — must not use || fallback
+  scrollDir:     P.get('scrollDir')  || 'up',  // up | down | horizontal
+  animIn:        P.get('animIn')     || 'bounce',
+
+  // Chat position (px from anchor edge)
+  chatX:         pInt('chatX', 20),
+  chatY:         pInt('chatY', 20),
+  chatSide:      P.get('chatSide')   || 'left',   // left | right
 
   // Features
-  showPlatform:  P.get('showPlatform')  !== 'false',
-  showBadges:    P.get('showBadges')    !== 'false',
-  showPronouns:  P.get('showPronouns')  === 'true',
+  showPlatform:  P.get('showPlatform')   !== 'false',
+  showBadges:    P.get('showBadges')     !== 'false',
+  showPronouns:  P.get('showPronouns')   === 'true',
   showSharedChat:P.get('showSharedChat') !== 'false',
 
-  // Events (master toggle + per-type)
-  showEvents:    P.get('showEvents')    !== 'false',
-  evSub:         P.get('evSub')         !== 'false',
-  evGift:        P.get('evGift')        !== 'false',
-  evCheer:       P.get('evCheer')       !== 'false',
-  evFollow:      P.get('evFollow')      !== 'false',
-  evRaid:        P.get('evRaid')        !== 'false',
-  evYtSuper:     P.get('evYtSuper')     !== 'false',
-  evYtMember:    P.get('evYtMember')    !== 'false',
+  // Events
+  showEvents:    P.get('showEvents')   !== 'false',
+  evSub:         P.get('evSub')        !== 'false',
+  evGift:        P.get('evGift')       !== 'false',
+  evCheer:       P.get('evCheer')      !== 'false',
+  evFollow:      P.get('evFollow')     !== 'false',
+  evRaid:        P.get('evRaid')       !== 'false',
+  evYtSuper:     P.get('evYtSuper')    !== 'false',
+  evYtMember:    P.get('evYtMember')   !== 'false',
 
   // Hype Train
   showHypeTrain: P.get('showHypeTrain') !== 'false',
-  hypePosTop:    P.get('hypePosTop')    === 'true',
+  hypeX:         pInt('hypeX', -1),   // -1 = centered (default)
+  hypeY:         pInt('hypeY', 24),   // px from top
 
-  // Demo mode (for customizer preview)
-  demo:          P.get('demo')          === 'true',
+  demo: P.get('demo') === 'true',
 };
+
+// ═══════════════════════════════════════════════════
+// FONT LOADING
+// ═══════════════════════════════════════════════════
+const BUNDLED_FONTS = ['Nunito', 'Fredoka One', 'Comic Neue', 'Patrick Hand'];
+function loadFont(family) {
+  if (!family || BUNDLED_FONTS.includes(family)) return;
+  const link = document.createElement('link');
+  link.rel  = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g,'+')}&display=swap`;
+  document.head.appendChild(link);
+}
+loadFont(cfg.fontFamily);
 
 // ═══════════════════════════════════════════════════
 // APPLY CSS VARIABLES
 // ═══════════════════════════════════════════════════
 const root = document.documentElement;
-root.style.setProperty('--bubble-color', cfg.bubbleColor);
-root.style.setProperty('--text-color',   cfg.textColor);
-root.style.setProperty('--font-size',    cfg.fontSize + 'px');
-root.style.setProperty('--font-family',  `'${cfg.fontFamily}', 'Nunito', sans-serif`);
-root.style.setProperty('--avatar-size',  cfg.avatarSize + 'px');
+root.style.setProperty('--bubble-color',  cfg.bubbleColor);
+root.style.setProperty('--text-color',    cfg.textColor);
+root.style.setProperty('--font-size',     cfg.fontSize + 'px');
+root.style.setProperty('--font-family',   `'${cfg.fontFamily}', 'Nunito', sans-serif`);
+root.style.setProperty('--avatar-size',   cfg.avatarSize + 'px');
+root.style.setProperty('--chat-x',        cfg.chatX + 'px');
+root.style.setProperty('--chat-y',        cfg.chatY + 'px');
 
 // ═══════════════════════════════════════════════════
 // DOM REFERENCES
 // ═══════════════════════════════════════════════════
-const container  = document.getElementById('chat-container');
-const statusEl   = document.getElementById('status');
-const statusDot  = document.getElementById('statusDot');
-const statusTxt  = document.getElementById('statusText');
-const hypeEl     = document.getElementById('hype-train');
-const hypeBar    = document.getElementById('hype-bar');
-const hypeLvl    = document.getElementById('hype-level');
-const hypePct    = document.getElementById('hype-pct');
+const container = document.getElementById('chat-container');
+const statusEl  = document.getElementById('status');
+const statusDot = document.getElementById('statusDot');
+const statusTxt = document.getElementById('statusText');
+const hypeEl    = document.getElementById('hype-train');
+const hypeBar   = document.getElementById('hype-bar');
+const hypeLvl   = document.getElementById('hype-level');
+const hypePct   = document.getElementById('hype-pct');
 
-// Apply layout classes
-if (cfg.position  === 'right')      container.classList.add('pos-right');
+// ── Apply layout / position ──────────────────────
+if (cfg.chatSide === 'right')       container.classList.add('pos-right');
 if (cfg.scrollDir === 'horizontal') container.classList.add('scroll-horizontal');
 if (cfg.scrollDir === 'down')       container.classList.add('scroll-down');
-if (cfg.hypePosTop)                 hypeEl.classList.add('hype-top');
+
+// Hype train position — centered by default, or at explicit X/Y
+if (cfg.hypeX >= 0) {
+  hypeEl.style.left      = cfg.hypeX + 'px';
+  hypeEl.style.top       = cfg.hypeY + 'px';
+  hypeEl.style.transform = 'none';
+} else {
+  // Centered horizontally; Y from top
+  hypeEl.style.top       = cfg.hypeY + 'px';
+  hypeEl.style.bottom    = 'auto';
+  hypeEl.style.left      = '50%';
+  hypeEl.style.transform = 'translateX(-50%)';
+}
 
 // ═══════════════════════════════════════════════════
 // UTILITIES
@@ -117,11 +154,11 @@ function getPlatformIcon(platform) {
 }
 
 function fallbackAvatar(username) {
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(username)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(username || 'unknown')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 }
 
 // ═══════════════════════════════════════════════════
-// AVATAR CACHE — prefers real profile pictures
+// AVATAR CACHE — real profile pictures, DiceBear fallback
 // ═══════════════════════════════════════════════════
 const avatarCache = new Map();
 
@@ -132,13 +169,10 @@ function getAvatarUrl(platform, username, providedUrl) {
 
   let url;
   if (providedUrl && providedUrl.startsWith('http')) {
-    // Streamer.bot gave us the real profile picture URL — use it directly
     url = providedUrl;
   } else if (platform === 'twitch') {
-    // unavatar.io fetches real Twitch avatars server-side, no API key needed
     url = `https://unavatar.io/twitch/${encodeURIComponent(username.toLowerCase())}`;
   } else if (platform === 'youtube') {
-    // Try unavatar.io for YouTube, with DiceBear fallback on img error
     url = `https://unavatar.io/youtube/${encodeURIComponent(username)}`;
   } else {
     url = fallbackAvatar(username);
@@ -149,7 +183,7 @@ function getAvatarUrl(platform, username, providedUrl) {
 }
 
 // ═══════════════════════════════════════════════════
-// PRONOUNS — pr.alejo.io
+// PRONOUNS — pronouns.alejo.io
 // ═══════════════════════════════════════════════════
 const pronounsMap  = {};
 const pronounCache = {};
@@ -158,7 +192,7 @@ let   pronounsReady = false;
 async function loadPronounsList() {
   if (pronounsReady) return;
   try {
-    const res = await fetch('https://pronouns.alejo.io/api/pronouns');
+    const res  = await fetch('https://pronouns.alejo.io/api/pronouns');
     const data = await res.json();
     data.forEach(p => { pronounsMap[p.name] = p.display; });
     pronounsReady = true;
@@ -202,7 +236,6 @@ function setStatus(state) {
 function connect() {
   clearTimeout(reconnectTimer);
   subscribed = false;
-
   try { ws = new WebSocket(`ws://${cfg.wsHost}:${cfg.wsPort}/`); }
   catch (_) { scheduleReconnect(); return; }
 
@@ -210,69 +243,45 @@ function connect() {
   ws.onclose = () => { setStatus('disconnected'); scheduleReconnect(); };
 
   ws.onopen = () => {
-    // Streamer.bot (0.1.x) sends a Connected event message after the socket opens,
-    // and we subscribe inside onmessage when we receive it.
-    // But as a safety net: if no Connected event arrives within 2 seconds we
-    // subscribe anyway — this handles servers that skip the Connected event.
-    setTimeout(() => {
-      if (!subscribed) subscribe();
-    }, 2000);
+    // Safety net: if Streamer.bot doesn't send a Connected event within 2s, subscribe anyway
+    setTimeout(() => { if (!subscribed) subscribe(); }, 2000);
   };
 
   ws.onmessage = async (e) => {
     let data;
     try { data = JSON.parse(e.data); } catch (_) { return; }
 
-    // ── Streamer.bot "Connected" handshake message ──
-    // Sent by Streamer.bot right after the WebSocket opens.
-    // May contain authentication challenge if a password is configured.
-    const isConnectedMsg = (
-      data?.event?.type === 'Connected' ||
-      data?.event?.type === 'Hello' ||
-      // Some versions wrap it differently
-      (data?.data?.version && !data?.event)
-    );
+    // Streamer.bot Connected handshake (may contain auth challenge)
+    const isHandshake = data?.event?.type === 'Connected'
+      || data?.event?.type === 'Hello'
+      || (data?.data?.version && !data?.event);
 
-    if (isConnectedMsg && !subscribed) {
+    if (isHandshake && !subscribed) {
       const auth = data?.data?.authentication;
-
       if (auth && cfg.wsPass) {
-        // Password auth required — compute HMAC response
         setStatus('auth');
         try {
-          // Streamer.bot auth: base64(SHA256( base64(SHA256(password + salt)) + challenge ))
           const secret = await sha256b64(cfg.wsPass + auth.salt);
           const token  = await sha256b64(secret + auth.challenge);
           ws.send(JSON.stringify({ request: 'Authenticate', authentication: token, id: 'auth' }));
-        } catch (_) {
-          // If crypto fails for any reason, try subscribing anyway
-          subscribe();
-        }
+        } catch (_) { subscribe(); }
       } else {
-        // No auth needed — subscribe straight away
         subscribe();
       }
       return;
     }
 
-    // ── Auth response from Streamer.bot ──
     if (data?.id === 'auth') {
-      if (data?.status === 'ok' || data?.data?.authenticated === true) {
-        setStatus('connected');
-      }
-      // Subscribe regardless — server will reject events if auth truly failed,
-      // but this avoids leaving the user with a broken silent connection.
+      setStatus('connected');
       subscribe();
       return;
     }
 
-    // ── Subscription acknowledged ──
     if (data?.id === 'sub') {
       setStatus('connected');
       return;
     }
 
-    // ── All other messages are chat/event data ──
     handleEvent(data);
   };
 }
@@ -315,13 +324,13 @@ function handleEvent(data) {
   if (source === 'Twitch') {
     switch (type) {
       case 'ChatMessage':     return onTwitchChat(d);
-      case 'Sub':             return cfg.showEvents && cfg.evSub   && onSub(d);
-      case 'ReSub':           return cfg.showEvents && cfg.evSub   && onReSub(d);
-      case 'GiftSub':         return cfg.showEvents && cfg.evGift  && onGiftSub(d);
-      case 'GiftBomb':        return cfg.showEvents && cfg.evGift  && onGiftBomb(d);
-      case 'Cheer':           return cfg.showEvents && cfg.evCheer && onCheer(d);
-      case 'Follow':          return cfg.showEvents && cfg.evFollow && onFollow(d, 'twitch');
-      case 'Raid':            return cfg.showEvents && cfg.evRaid  && onRaid(d);
+      case 'Sub':             return cfg.showEvents && cfg.evSub    && onSub(d);
+      case 'ReSub':           return cfg.showEvents && cfg.evSub    && onReSub(d);
+      case 'GiftSub':         return cfg.showEvents && cfg.evGift   && onGiftSub(d);
+      case 'GiftBomb':        return cfg.showEvents && cfg.evGift   && onGiftBomb(d);
+      case 'Cheer':           return cfg.showEvents && cfg.evCheer  && onCheer(d);
+      case 'Follow':          return cfg.showEvents && cfg.evFollow && onFollow(d);
+      case 'Raid':            return cfg.showEvents && cfg.evRaid   && onRaid(d);
       case 'HypeTrainStart':  return onHypeStart(d);
       case 'HypeTrainUpdate': return onHypeUpdate(d);
       case 'HypeTrainEnd':
@@ -330,14 +339,48 @@ function handleEvent(data) {
   }
   if (source === 'YouTube') {
     switch (type) {
-      case 'Message':          return onYouTubeChat(d);
+      case 'Message':         return onYouTubeChat(d);
       case 'SuperChat':
-      case 'SuperSticker':     return cfg.showEvents && cfg.evYtSuper  && onSuperChat(d);
+      case 'SuperSticker':    return cfg.showEvents && cfg.evYtSuper  && onSuperChat(d);
       case 'NewSponsor':
-      case 'NewMember':        return cfg.showEvents && cfg.evYtMember && onYTMember(d, false);
-      case 'MemberMilestone':  return cfg.showEvents && cfg.evYtMember && onYTMember(d, true);
+      case 'NewMember':       return cfg.showEvents && cfg.evYtMember && onYTMember(d, false);
+      case 'MemberMilestone': return cfg.showEvents && cfg.evYtMember && onYTMember(d, true);
     }
   }
+}
+
+// ═══════════════════════════════════════════════════
+// STREAMER.BOT DATA HELPERS
+// Extract user info from the various places SB puts it.
+// Priority: d.user (newer SB) → d.message (chat events) → d directly
+// ═══════════════════════════════════════════════════
+function extractUser(d) {
+  // Newer Streamer.bot (0.2.x) wraps user in d.user
+  if (d?.user?.login || d?.user?.displayName) {
+    return {
+      displayName: d.user.displayName || d.user.login || 'Unknown',
+      login:       d.user.login       || d.user.displayName || '',
+      avatarUrl:   d.user.profileImageUrl || d.user.profile_image_url || '',
+      color:       d.user.color || null,
+    };
+  }
+  // Older SB puts user fields directly on d or inside d.message
+  const src = d?.message || d || {};
+  return {
+    displayName: src.displayName || src.username || src.login || 'Unknown',
+    login:       src.username    || src.login    || src.displayName || '',
+    avatarUrl:   src.profileImageUrl || src.userProfileImageUrl || '',
+    color:       src.color || null,
+  };
+}
+
+function extractMessage(d) {
+  // Newer SB: message text in d.message.message
+  if (d?.message?.message !== undefined) return { text: d.message.message, emotes: d.message.emotes || [] };
+  // Older SB: text directly on d or d.message as a string
+  if (typeof d?.message === 'string')    return { text: d.message, emotes: [] };
+  // Direct fields
+  return { text: d?.text || d?.message || '', emotes: d?.emotes || [] };
 }
 
 // ═══════════════════════════════════════════════════
@@ -353,47 +396,33 @@ function shouldFilter(username, text) {
 // TWITCH CHAT HANDLER
 // ═══════════════════════════════════════════════════
 async function onTwitchChat(d) {
-  // Streamer.bot can nest message data in different ways
+  const user = extractUser(d);
+  const msg  = extractMessage(d);
+  if (!msg.text) return;
+  if (shouldFilter(user.login, msg.text)) return;
+
+  // Shared chat
   const m = d?.message ?? d ?? {};
-  if (!m.message && !m.text) return;
-
-  const username  = m.displayName  || m.username  || 'Unknown';
-  const userLogin = m.username     || m.login     || '';
-  const text      = m.message      || m.text      || '';
-
-  if (shouldFilter(username, text)) return;
-
-  // Profile picture: prefer Streamer.bot's provided URL, fall back to unavatar.io
-  const providedAvatar = d.user?.profileImageUrl
-    || d.user?.profile_image_url
-    || m.userProfileImageUrl
-    || m.profileImageUrl
-    || '';
-
-  // Shared chat — messages forwarded from another channel's chat
-  const isShared  = !!(m.sourceRoomId || m.sourceBroadcasterLogin);
-  const sharedFrom = isShared
-    ? (m.sourceBroadcasterName || m.sourceBroadcasterLogin || '')
-    : '';
-
+  const isShared   = !!(m.sourceRoomId || m.sourceBroadcasterLogin);
+  const sharedFrom = isShared ? (m.sourceBroadcasterName || m.sourceBroadcasterLogin || '') : '';
   if (isShared && !cfg.showSharedChat) return;
 
-  const pronoun = await getPronoun(userLogin || username);
+  const pronoun = await getPronoun(user.login);
 
   addChatBubble({
     platform:       'twitch',
-    username,
-    userLogin,
-    color:          m.color,
-    text,
-    emotes:         m.emotes || [],
+    username:       user.displayName,
+    userLogin:      user.login,
+    color:          user.color || m.color || null,
+    text:           msg.text,
+    emotes:         msg.emotes,
     isBroadcaster:  m.isBroadcaster,
     isModerator:    m.isModerator,
     isSubscriber:   m.isSubscribed || m.isSubscriber,
     isVip:          m.isVip,
     isFirstMessage: m.isFirstMessage,
     bits:           m.bits || 0,
-    avatarUrl:      providedAvatar,
+    avatarUrl:      user.avatarUrl,
     pronoun,
     isShared,
     sharedFrom,
@@ -404,32 +433,24 @@ async function onTwitchChat(d) {
 // YOUTUBE CHAT HANDLER
 // ═══════════════════════════════════════════════════
 async function onYouTubeChat(d) {
+  const user = extractUser(d);
+  const msg  = extractMessage(d);
+  if (!msg.text) return;
+  if (shouldFilter(user.login, msg.text)) return;
+
   const m = d?.message ?? d ?? {};
-  if (!m.message && !m.text) return;
-
-  const username = m.displayName || m.username || 'Unknown';
-  const text     = m.message     || m.text     || '';
-
-  if (shouldFilter(username, text)) return;
-
-  // YouTube profile pictures often come directly from Streamer.bot
-  const providedAvatar = d.user?.profileImageUrl
-    || d.user?.profile_image_url
-    || m.profileImageUrl
-    || m.userProfileImageUrl
-    || '';
 
   addChatBubble({
     platform:    'youtube',
-    username,
-    userLogin:   m.username || '',
+    username:    user.displayName,
+    userLogin:   user.login,
     color:       null,
-    text,
+    text:        msg.text,
     emotes:      [],
     isOwner:     m.isOwner,
     isModerator: m.isModerator,
     isMember:    m.isMember || m.isSponsor,
-    avatarUrl:   providedAvatar,
+    avatarUrl:   user.avatarUrl,
     pronoun:     '',
     isShared:    false,
     sharedFrom:  '',
@@ -438,76 +459,96 @@ async function onYouTubeChat(d) {
 
 // ═══════════════════════════════════════════════════
 // TWITCH EVENT HANDLERS
+// All use extractUser(d) so we handle both SB versions
 // ═══════════════════════════════════════════════════
 function onSub(d) {
-  const tier  = tierLabel(d.subTier);
-  const prime = d.isPrime ? ' (Prime)' : '';
+  const user = extractUser(d);
+  const msg  = extractMessage(d);
+  const tier = tierLabel(d.subTier || d.tier || d.subPlan);
+  const prime = (d.isPrime || d.subPlan === 'Prime') ? ' (Prime)' : '';
+  const months = d.cumulativeMonths || d.months || '';
   addEventBubble({
     icon: '🎉', type: 'sub', platform: 'twitch',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('twitch', d.username || '', d.user?.profileImageUrl || ''),
-    title: `${esc(d.displayName || d.username)} just subscribed!`,
-    body:  `${tier}${prime}${d.message ? ` · "${esc(d.message)}"` : ''}`,
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} just subscribed!`,
+    body:  `${tier}${prime}${months ? ` · ${months} months` : ''}${msg.text ? ` · "${esc(msg.text)}"` : ''}`,
   });
 }
 
 function onReSub(d) {
+  const user   = extractUser(d);
+  const msg    = extractMessage(d);
+  const months = d.cumulativeMonths || d.months || '?';
   addEventBubble({
     icon: '🎊', type: 'sub', platform: 'twitch',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('twitch', d.username || '', d.user?.profileImageUrl || ''),
-    title: `${esc(d.displayName || d.username)} resubscribed!`,
-    body:  `${tierLabel(d.subTier)} · ${d.cumulativeMonths || d.months || '?'} months${d.message ? ` · "${esc(d.message)}"` : ''}`,
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} resubscribed!`,
+    body:  `${tierLabel(d.subTier || d.tier)} · ${months} months${msg.text ? ` · "${esc(msg.text)}"` : ''}`,
   });
 }
 
 function onGiftSub(d) {
+  const user      = extractUser(d);
+  // Recipient can be in d.recipient or d.recipientUser
+  const recipient = d.recipient?.displayName || d.recipient?.login
+    || d.recipientUser?.displayName || d.recipientUser?.login
+    || d.recipientDisplayName || d.recipientUsername || 'someone';
   addEventBubble({
     icon: '🎁', type: 'gift', platform: 'twitch',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('twitch', d.username || '', ''),
-    title: `${esc(d.displayName || d.username)} gifted a sub!`,
-    body:  `To ${esc(d.recipientDisplayName || d.recipientUsername || 'someone')} · ${tierLabel(d.subTier)}`,
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} gifted a sub!`,
+    body:  `To ${esc(recipient)} · ${tierLabel(d.subTier || d.tier)}`,
   });
 }
 
 function onGiftBomb(d) {
+  const user = extractUser(d);
+  const qty  = d.gifts || d.amount || d.quantity || '?';
   addEventBubble({
     icon: '💣', type: 'gift', platform: 'twitch',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('twitch', d.username || '', ''),
-    title: `${esc(d.displayName || d.username)} gifted ${d.gifts || d.amount || '?'} subs!`,
-    body:  `${tierLabel(d.subTier)} · Total given: ${d.totalGifts ?? '?'}`,
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} gifted ${qty} subs!`,
+    body:  `${tierLabel(d.subTier || d.tier)} · Total given: ${d.totalGifts ?? '?'}`,
   });
 }
 
 function onCheer(d) {
+  const user = extractUser(d);
+  const msg  = extractMessage(d);
+  const bits = d.bits || d.amount || 0;
   addEventBubble({
     icon: '⭐', type: 'cheer', platform: 'twitch',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('twitch', d.username || '', ''),
-    title: `${esc(d.displayName || d.username)} cheered ${d.bits || 0} bits!`,
-    body:  d.message ? `"${esc(d.message)}"` : '',
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} cheered ${bits} bits!`,
+    body:  msg.text ? `"${esc(msg.text)}"` : '',
   });
 }
 
-function onFollow(d, platform) {
+function onFollow(d) {
+  const user = extractUser(d);
   addEventBubble({
-    icon: '💜', type: 'follow', platform,
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl(platform, d.username || '', ''),
-    title: `${esc(d.displayName || d.username)} just followed!`,
+    icon: '💜', type: 'follow', platform: 'twitch',
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} just followed!`,
     body:  'Welcome to the community! 🎉',
   });
 }
 
 function onRaid(d) {
+  const user    = extractUser(d);
+  const viewers = d.viewerCount || d.viewers || d.raiderCount || '?';
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('twitch', d.username || '', ''),
-    title: `${esc(d.displayName || d.username)} is raiding!`,
-    body:  `Bringing ${d.viewerCount || d.viewers || '?'} viewers! 🚀`,
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} is raiding!`,
+    body:  `Bringing ${viewers} viewers 🚀`,
   });
 }
 
@@ -515,25 +556,30 @@ function onRaid(d) {
 // YOUTUBE EVENT HANDLERS
 // ═══════════════════════════════════════════════════
 function onSuperChat(d) {
+  const user   = extractUser(d);
+  const msg    = extractMessage(d);
+  const amount = d.formattedAmount || d.amount || '';
   addEventBubble({
     icon: '💰', type: 'superchat', platform: 'youtube',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('youtube', d.username || '', d.user?.profileImageUrl || ''),
-    title: `${esc(d.displayName || d.username)} sent a Super Chat!`,
-    body:  `${d.formattedAmount || d.amount || ''} · ${d.message ? `"${esc(d.message)}"` : ''}`,
+    username:    user.displayName,
+    avatarUrl:   getAvatarUrl('youtube', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} sent a Super Chat!`,
+    body:  `${amount}${msg.text ? ` · "${esc(msg.text)}"` : ''}`,
     accentColor: d.color || '#ff0000',
   });
 }
 
 function onYTMember(d, isMilestone) {
+  const user   = extractUser(d);
+  const months = d.months || d.monthCount || '?';
   addEventBubble({
     icon: '🌟', type: 'member', platform: 'youtube',
-    username: d.displayName || d.username || '',
-    avatarUrl: getAvatarUrl('youtube', d.username || '', d.user?.profileImageUrl || ''),
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('youtube', user.login, user.avatarUrl),
     title: isMilestone
-      ? `${esc(d.displayName || d.username)} has been a member for ${d.months || '?'} months!`
-      : `${esc(d.displayName || d.username)} just became a member!`,
-    body:  d.level || '',
+      ? `${esc(user.displayName)} has been a member for ${months} months!`
+      : `${esc(user.displayName)} just became a member!`,
+    body: d.level || '',
   });
 }
 
@@ -545,27 +591,27 @@ let hypeTimer;
 function onHypeStart(d) {
   if (!cfg.showHypeTrain) return;
   hypeEl.classList.remove('hidden');
-  _updateHype(d.level || 1, d.total || 0, d.goal || 1500);
+  _updateHype(d?.level || 1, d?.total || 0, d?.goal || 1500);
 }
 
 function onHypeUpdate(d) {
   if (!cfg.showHypeTrain) return;
   hypeEl.classList.remove('hidden');
-  _updateHype(d.level || 1, d.total || 0, d.goal || 1500);
+  _updateHype(d?.level || 1, d?.total || 0, d?.goal || 1500);
 }
 
 function onHypeEnd(d) {
   if (!cfg.showHypeTrain) return;
   clearTimeout(hypeTimer);
-  _updateHype(d.level || 1, d.total || 0, d.total || 1);
+  _updateHype(d?.level || 1, d?.total || 0, d?.total || 1);
   hypeTimer = setTimeout(() => hypeEl.classList.add('hidden'), 6000);
 }
 
 function _updateHype(level, total, goal) {
-  const pct       = Math.min(100, Math.round((total / (goal || 1)) * 100));
-  hypeLvl.textContent  = `🚂 HYPE TRAIN LEVEL ${level}`;
-  hypePct.textContent  = `${pct}%`;
-  hypeBar.style.width  = `${pct}%`;
+  const pct = Math.min(100, Math.round((total / (goal || 1)) * 100));
+  hypeLvl.textContent = `🚂 HYPE TRAIN LEVEL ${level}`;
+  hypePct.textContent = `${pct}%`;
+  hypeBar.style.width = `${pct}%`;
 }
 
 // ═══════════════════════════════════════════════════
@@ -575,49 +621,40 @@ async function addChatBubble(msg) {
   const uColor    = (cfg.usernameMode === 'usercolor' && msg.color) ? msg.color : cfg.usernameColor;
   const avatarUrl = getAvatarUrl(msg.platform, msg.userLogin || msg.username, msg.avatarUrl);
   const animClass = getAnimClass();
+  const fbAvatar  = fallbackAvatar(msg.username);
 
-  // Badges
   let badgeHtml = '';
   if (cfg.showBadges) {
-    if (msg.isBroadcaster)   badgeHtml += `<span class="badge" title="Broadcaster">🎙️</span>`;
+    if (msg.isBroadcaster)                   badgeHtml += `<span class="badge" title="Broadcaster">🎙️</span>`;
     else if (msg.isModerator || msg.isOwner) badgeHtml += `<span class="badge" title="Moderator">⚔️</span>`;
     if (msg.isSubscriber || msg.isMember)    badgeHtml += `<span class="badge-pill badge-${msg.isMember ? 'member' : 'sub'}">${msg.isMember ? 'Member' : 'Sub'}</span>`;
-    if (msg.isVip)           badgeHtml += `<span class="badge" title="VIP">💎</span>`;
-    if (msg.isFirstMessage)  badgeHtml += `<span class="badge-pill badge-first">First chat! 🌟</span>`;
-    if (msg.bits > 0)        badgeHtml += `<span class="badge-pill badge-bits">⭐ ${msg.bits}</span>`;
+    if (msg.isVip)                           badgeHtml += `<span class="badge" title="VIP">💎</span>`;
+    if (msg.isFirstMessage)                  badgeHtml += `<span class="badge-pill badge-first">First chat! 🌟</span>`;
+    if (msg.bits > 0)                        badgeHtml += `<span class="badge-pill badge-bits">⭐ ${msg.bits}</span>`;
   }
 
-  const pronounHtml = msg.pronoun
-    ? `<span class="pronoun">${esc(msg.pronoun)}</span>` : '';
-
-  const platformHtml = cfg.showPlatform ? `
-    <div class="platform-badge">
-      <img class="platform-icon" src="${getPlatformIcon(msg.platform)}" alt="${msg.platform}" />
-    </div>` : '';
-
-  const sharedHtml = (msg.isShared && msg.sharedFrom)
+  const pronounHtml  = msg.pronoun ? `<span class="pronoun">${esc(msg.pronoun)}</span>` : '';
+  const platformHtml = cfg.showPlatform
+    ? `<div class="platform-badge"><img class="platform-icon" src="${getPlatformIcon(msg.platform)}" alt="${msg.platform}" /></div>`
+    : '';
+  const sharedHtml   = (msg.isShared && msg.sharedFrom)
     ? `<div class="shared-label">📡 from @${esc(msg.sharedFrom)}'s chat</div>` : '';
-
-  const msgHtml = msg.platform === 'twitch'
-    ? parseEmotes(msg.text, msg.emotes)
-    : esc(msg.text);
-
-  const safeName = esc(msg.username);
-  const fbAvatar = fallbackAvatar(msg.username);
+  const msgHtml      = msg.platform === 'twitch'
+    ? parseEmotes(msg.text, msg.emotes) : esc(msg.text);
 
   const el = document.createElement('div');
   el.className = `message ${animClass}${msg.isShared ? ' shared-chat' : ''}`;
   el.innerHTML = `
     <div class="avatar-wrapper">
       <div class="avatar">
-        <img src="${avatarUrl}" alt="${safeName}" loading="lazy"
+        <img src="${avatarUrl}" alt="${esc(msg.username)}" loading="lazy"
              onerror="if(this.src!=='${fbAvatar}')this.src='${fbAvatar}'" />
       </div>
       ${platformHtml}
     </div>
     <div class="bubble-wrapper">
       <div class="username-row">
-        <span class="username" style="color:${uColor}">${safeName}</span>
+        <span class="username" style="color:${uColor}">${esc(msg.username)}</span>
         ${pronounHtml}${badgeHtml}
       </div>
       ${sharedHtml}
@@ -660,7 +697,7 @@ function addEventBubble(ev) {
 // ═══════════════════════════════════════════════════
 function getAnimClass() {
   if (cfg.animIn === 'slide') {
-    return (cfg.position === 'right' || cfg.scrollDir === 'horizontal')
+    return (cfg.chatSide === 'right' || cfg.scrollDir === 'horizontal')
       ? 'anim-slide-right' : 'anim-slide';
   }
   return `anim-${cfg.animIn}`;
@@ -673,14 +710,14 @@ function appendMsg(el) {
     container.appendChild(el);
   }
 
-  // Prune when over limit
+  // Prune when over max
   const all = container.querySelectorAll('.message:not(.removing)');
   if (all.length > cfg.maxMsg) {
     const oldest = cfg.scrollDir === 'down' ? all[all.length - 1] : all[0];
     removeMsg(oldest);
   }
 
-  // Auto-expire
+  // Auto-expire — 0 means forever, never set a timer
   if (cfg.msgLife > 0) {
     setTimeout(() => { if (el.parentNode) removeMsg(el); }, cfg.msgLife * 1000);
   }
@@ -690,7 +727,7 @@ function removeMsg(el) {
   if (!el || el.classList.contains('removing')) return;
   el.classList.add('removing');
   el.addEventListener('animationend', () => el.remove(), { once: true });
-  setTimeout(() => el?.remove(), 800); // safety fallback
+  setTimeout(() => el?.remove(), 800);
 }
 
 // ═══════════════════════════════════════════════════
@@ -698,10 +735,9 @@ function removeMsg(el) {
 // ═══════════════════════════════════════════════════
 function parseEmotes(text, emotes) {
   if (!emotes?.length) return esc(text);
-  const chars  = [...text]; // emoji-safe split
+  const chars  = [...text];
   const sorted = [...emotes].sort((a, b) => a.startIndex - b.startIndex);
   let result = '', cursor = 0;
-
   for (const em of sorted) {
     if (em.startIndex > cursor)
       result += esc(chars.slice(cursor, em.startIndex).join(''));
@@ -714,19 +750,19 @@ function parseEmotes(text, emotes) {
 }
 
 // ═══════════════════════════════════════════════════
-// DEMO MODE — simulated messages for the customizer preview
+// DEMO MODE
 // ═══════════════════════════════════════════════════
 const DEMO_QUEUE = [
-  () => onTwitchChat({ message:{ displayName:'StreamFan99',  username:'streamfan99',  color:'#FF4D4D', message:'POGGERS this overlay is so cute!! 🎮', isSubscribed:true }}),
-  () => onYouTubeChat({ message:{ displayName:'YouTubeLurker', username:'youtubelurker', message:'Hello from YouTube! Love the stream ❤️', isMember:true }}),
-  () => onTwitchChat({ message:{ displayName:'ModeratorPro',  username:'moderatorpro',  color:'#5CB85C', message:"Pog let's gooooo!!!", isModerator:true }}),
-  () => onSub({ displayName:'HypeNewSub', username:'hypesub', subTier:'1000', isPrime:false, message:'Finally subscribed!' }),
-  () => onTwitchChat({ message:{ displayName:'FirstTimer99', username:'firsttimer99', color:'#9146FF', message:'This is my first time chatting!', isFirstMessage:true }}),
-  () => onCheer({ displayName:'BitsDono', username:'bitsdono', bits:500, message:'Keep it up!!🎉' }),
-  () => onYouTubeChat({ message:{ displayName:'SuperFan', username:'superfan', message:'Great content as always Clap', isOwner:false }}),
-  () => onSuperChat({ displayName:'YTSupporter', username:'ytsupporter', formattedAmount:'$10.00', message:'Amazing stream!', color:'#1DE9B6' }),
-  () => onRaid({ displayName:'FriendlyRaider', username:'friendlyraider', viewerCount:84 }),
-  () => onGiftSub({ displayName:'GenerousGifter', username:'generousgifter', subTier:'1000', recipientDisplayName:'LuckyViewer' }),
+  () => onTwitchChat({ user:{ displayName:'StreamFan99', login:'streamfan99', profileImageUrl:'' }, message:{ message:'POGGERS this overlay is so cute!! 🎮', emotes:[], isSubscribed:true, color:'#FF4D4D' }}),
+  () => onYouTubeChat({ user:{ displayName:'YouTubeLurker', login:'youtubelurker', profileImageUrl:'' }, message:{ message:'Hello from YouTube! Love the stream ❤️', isMember:true }}),
+  () => onTwitchChat({ user:{ displayName:'ModeratorPro', login:'moderatorpro', profileImageUrl:'' }, message:{ message:"Pog let's gooooo!!!", emotes:[], isModerator:true, color:'#5CB85C' }}),
+  () => onSub({ user:{ displayName:'HypeNewSub', login:'hypesub', profileImageUrl:'' }, subTier:'1000', isPrime:false, message:{ message:'Finally subscribed!' }}),
+  () => onTwitchChat({ user:{ displayName:'FirstTimer99', login:'firsttimer99', profileImageUrl:'' }, message:{ message:'This is my first time chatting!', emotes:[], isFirstMessage:true, color:'#9146FF' }}),
+  () => onCheer({ user:{ displayName:'BitsDono', login:'bitsdono', profileImageUrl:'' }, bits:500, message:{ message:'Keep it up!! 🎉' }}),
+  () => onSuperChat({ user:{ displayName:'YTSupporter', login:'ytsupporter', profileImageUrl:'' }, formattedAmount:'$10.00', message:{ message:'Amazing stream!' }, color:'#1DE9B6' }),
+  () => onRaid({ user:{ displayName:'FriendlyRaider', login:'friendlyraider', profileImageUrl:'' }, viewerCount:84 }),
+  () => onGiftSub({ user:{ displayName:'GenerousGifter', login:'generousgifter', profileImageUrl:'' }, subTier:'1000', recipient:{ displayName:'LuckyViewer', login:'luckyviewer' }}),
+  () => onReSub({ user:{ displayName:'LoyalFan', login:'loyalfan', profileImageUrl:'' }, subTier:'1000', cumulativeMonths:6, message:{ message:"Six months! LUL" }}),
 ];
 
 if (cfg.demo) {

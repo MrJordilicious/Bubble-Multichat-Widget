@@ -39,13 +39,6 @@
     <div class="section-title">🔌 Streamer.bot Connection</div>
 
     <div class="form-group">
-      <label for="overlayUrl">Overlay URL <span class="required">⚠ set this first</span></label>
-      <small>The full URL where <b>overlay.html</b> is hosted on GitHub Pages. Example: <b>https://yourusername.github.io/your-repo/overlay.html</b></small>
-      <input type="text" id="overlayUrl" placeholder="https://yourusername.github.io/your-repo/overlay.html" />
-      <span id="urlHint" class="url-hint"></span>
-    </div>
-
-    <div class="form-group">
       <label for="wsHost">WebSocket Host / IP</label>
       <small>IP of the PC running Streamer.bot. Use <b>127.0.0.1</b> if OBS and Streamer.bot are on the same machine</small>
       <input type="text" id="wsHost" placeholder="127.0.0.1" value="127.0.0.1" />
@@ -53,8 +46,8 @@
 
     <div class="form-group">
       <label for="wsPort">WebSocket Port</label>
-      <small>Port of the Streamer.bot WebSocket server. Default is <b>7474</b></small>
-      <input type="text" id="wsPort" placeholder="7474" value="7474" />
+      <small>Port of the Streamer.bot WebSocket server. Default is <b>8080</b></small>
+      <input type="text" id="wsPort" placeholder="8080" value="8080" />
     </div>
 
     <div class="form-group">
@@ -98,12 +91,20 @@
 
     <div class="form-group">
       <label for="fontFamily">Font</label>
-      <select id="fontFamily">
+      <small>Choose a preset or type any <b>Google Font</b> name in the field below</small>
+      <select id="fontFamily" onchange="syncFontInput(this.value)">
         <option value="Nunito">Nunito (Default – friendly &amp; rounded)</option>
         <option value="Fredoka One">Fredoka One (Fun &amp; bubbly)</option>
         <option value="Comic Neue">Comic Neue (Casual &amp; playful)</option>
         <option value="Patrick Hand">Patrick Hand (Handwritten feel)</option>
+        <option value="custom">✏️ Custom Google Font…</option>
       </select>
+    </div>
+
+    <div class="form-group" id="customFontGroup" style="display:none">
+      <label for="customFont">Custom Google Font Name</label>
+      <small>Type the exact font name from <a href="https://fonts.google.com" target="_blank" style="color:#E5007E">fonts.google.com</a> (e.g. <b>Baloo 2</b>, <b>Poppins</b>, <b>Lilita One</b>)</small>
+      <input type="text" id="customFont" placeholder="e.g. Baloo 2" />
     </div>
 
     <div class="form-group">
@@ -205,18 +206,27 @@
     <!-- ════════════════════════════════ -->
     <!--  POSITION                       -->
     <!-- ════════════════════════════════ -->
-    <div class="section-title">📐 Position</div>
+    <div class="section-title">📐 Chat Position</div>
+    <small style="display:block;margin-bottom:12px;color:#666;">Set where the chat column sits on your scene. X = pixels from the chosen side, Y = pixels from the bottom (or top when scroll is down).</small>
 
-    <div class="setting-row">
-      <div class="setting-label">
-        <span>Show on right side:</span>
-        <small>Place the overlay on the right side of your scene</small>
+    <div class="form-group">
+      <label for="chatSide">Horizontal Side</label>
+      <select id="chatSide">
+        <option value="left">Left side of scene</option>
+        <option value="right">Right side of scene</option>
+      </select>
+    </div>
+
+    <div class="xy-row">
+      <div class="form-group">
+        <label for="chatX">X offset <span class="unit">px</span></label>
+        <small>From the chosen side</small>
+        <input type="number" id="chatX" value="20" min="0" max="1920" />
       </div>
-      <div class="setting-right">
-        <label class="switch">
-          <input type="checkbox" id="positionToggle" />
-          <span class="slider round"></span>
-        </label>
+      <div class="form-group">
+        <label for="chatY">Y offset <span class="unit">px</span></label>
+        <small>From bottom (or top)</small>
+        <input type="number" id="chatY" value="20" min="0" max="1080" />
       </div>
     </div>
 
@@ -413,16 +423,19 @@
       </div>
     </div>
 
-    <div class="setting-row" id="hypePosRow">
-      <div class="setting-label">
-        <span>Hype Train bar at top:</span>
-        <small>Show the bar at the top of the scene instead of the bottom</small>
-      </div>
-      <div class="setting-right">
-        <label class="switch">
-          <input type="checkbox" id="hypePosTop" />
-          <span class="slider round"></span>
-        </label>
+    <div id="hypePositionGroup">
+      <small style="display:block;margin-bottom:10px;color:#666;">Set the bar's position on screen. Leave X at <b>-1</b> to auto-center it horizontally.</small>
+      <div class="xy-row">
+        <div class="form-group">
+          <label for="hypeX">X <span class="unit">px</span></label>
+          <small>From left (-1 = center)</small>
+          <input type="number" id="hypeX" value="-1" min="-1" max="1920" />
+        </div>
+        <div class="form-group">
+          <label for="hypeY">Y <span class="unit">px</span></label>
+          <small>From top edge</small>
+          <input type="number" id="hypeY" value="24" min="0" max="1080" />
+        </div>
       </div>
     </div>
 

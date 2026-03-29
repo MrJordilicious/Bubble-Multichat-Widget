@@ -3,244 +3,192 @@
    ================================================ */
 'use strict';
 
-// ── Element references ────────────────────────────
+const OVERLAY_URL = 'https://widgets.mrjordilicious.com/Bubble-Multichat-Widget/overlay.html';
+
 const $ = id => document.getElementById(id);
 
-const els = {
-  // Connection
-  wsHost:        $('wsHost'),
-  wsPort:        $('wsPort'),
-  wsPass:        $('wsPass'),
-
-  // Filtering
-  ignored:       $('ignored'),
-  ignoreCmd:     $('ignoreCmd'),
-
-  // Appearance
-  fontFamily:    $('fontFamily'),
-  fontSize:      $('fontSize'),
-  fontSizeVal:   $('fontSizeVal'),
-  bubbleColor:   $('bubbleColor'),
-  textColor:     $('textColor'),
-  usernameMode:  $('usernameMode'),
-  usernameColor: $('usernameColor'),
-  customColorGroup: $('customColorGroup'),
-
-  // Avatars
-  avatarSize:    $('avatarSize'),
-  avatarSizeVal: $('avatarSizeVal'),
-
-  // Behavior
-  maxMsg:        $('maxMsg'),
-  maxMsgVal:     $('maxMsgVal'),
-  msgLife:       $('msgLife'),
-  scrollDir:     $('scrollDir'),
-  animIn:        $('animIn'),
-
-  // Position
-  positionToggle:$('positionToggle'),
-
-  // Features
-  showPlatform:  $('showPlatform'),
-  showBadges:    $('showBadges'),
-  showPronouns:  $('showPronouns'),
-
-  // Events
-  showEvents:    $('showEvents'),
-  eventSubOptions:$('eventSubOptions'),
-  evSub:         $('evSub'),
-  evGift:        $('evGift'),
-  evCheer:       $('evCheer'),
-  evFollow:      $('evFollow'),
-  evRaid:        $('evRaid'),
-  evYtSuper:     $('evYtSuper'),
-  evYtMember:    $('evYtMember'),
-
-  // Shared chat
-  showSharedChat:$('showSharedChat'),
-
-  // Hype train
-  showHypeTrain: $('showHypeTrain'),
-  hypePosTop:    $('hypePosTop'),
-  hypePosRow:    $('hypePosRow'),
-
-  // Output
-  result:        $('result'),
-  copyBtn:       $('copyBtn'),
-  copyMsg:       $('copyMsg'),
-  iframe:        $('widgetPreview'),
-};
-
-// ── Overlay URL ───────────────────────────────────
-// Smart pre-fill: swap this page's filename for overlay.html.
-// This is correct when both files are in the same folder.
-// If the user put them in different folders they just edit the field.
-function guessOverlayUrl() {
-  const loc  = window.location;
-  const base = loc.origin + loc.pathname.replace(/\/[^/]*$/, '/');
-  return base + 'overlay.html';
+// ── Font handling ─────────────────────────────────
+function syncFontInput(val) {
+  const group = $('customFontGroup');
+  if (group) group.style.display = (val === 'custom') ? 'block' : 'none';
+  updateAll();
 }
+window.syncFontInput = syncFontInput; // expose for inline onchange
 
-// ── Helpers ───────────────────────────────────────
-const colorHex = el => el.value.replace('#', '');
-
-function getOverlayBase() {
-  const v = $('overlayUrl')?.value?.trim();
-  return (v && v.startsWith('http')) ? v : guessOverlayUrl();
+function getChosenFont() {
+  const sel = $('fontFamily');
+  if (!sel) return 'Nunito';
+  if (sel.value === 'custom') {
+    return ($('customFont')?.value?.trim()) || 'Nunito';
+  }
+  return sel.value;
 }
 
 // ── Build overlay URL ─────────────────────────────
 function buildURL(demo) {
   const q = new URLSearchParams();
 
-  // Connection (only include non-defaults to keep URL clean)
-  const host = els.wsHost.value.trim();
-  const port = els.wsPort.value.trim();
-  const pass = els.wsPass.value.trim();
+  // Connection
+  const host = $('wsHost')?.value?.trim();
+  const port = $('wsPort')?.value?.trim();
+  const pass = $('wsPass')?.value?.trim();
   if (host && host !== '127.0.0.1') q.set('wsHost', host);
-  if (port && port !== '7474')       q.set('wsPort', port);
-  if (pass)                          q.set('wsPass', pass);
+  if (port && port !== '8080')      q.set('wsPort', port);
+  if (pass)                         q.set('wsPass', pass);
 
   // Filtering
-  const ignored = els.ignored.value.trim().replace(/\s*,\s*/g, ',');
-  if (ignored)                               q.set('ignored', ignored);
-  if (!els.ignoreCmd.checked)                q.set('ignoreCmd', 'false');  // default true
+  const ignored = $('ignored')?.value?.trim().replace(/\s*,\s*/g, ',');
+  if (ignored)                       q.set('ignored', ignored);
+  if (!$('ignoreCmd')?.checked)      q.set('ignoreCmd', 'false');
 
-  // Appearance
-  const font = els.fontFamily.value;
-  if (font !== 'Nunito')                     q.set('fontFamily', font);
-  const size = els.fontSize.value;
-  if (size !== '15')                         q.set('fontSize', size);
-  const bc = colorHex(els.bubbleColor);
-  if (bc.toUpperCase() !== 'FFF8F0')         q.set('bubbleColor', bc);
-  const tc = colorHex(els.textColor);
-  if (tc.toLowerCase() !== '3a2f2f')         q.set('textColor', tc);
-  const unMode = els.usernameMode.checked ? 'usercolor' : 'custom';
-  if (unMode !== 'usercolor')                q.set('usernameMode', unMode);
-  const uc = colorHex(els.usernameColor);
-  if (uc.toLowerCase() !== 'ff7043')         q.set('usernameColor', uc);
+  // Appearance — font
+  const font = getChosenFont();
+  if (font !== 'Nunito')             q.set('fontFamily', font);
 
-  // Avatars
-  const avSz = parseInt(els.avatarSize.value);
-  if (avSz !== 54)                           q.set('avatarSize', avSz);
+  const size = $('fontSize')?.value;
+  if (size && size !== '15')         q.set('fontSize', size);
+
+  const bc = $('bubbleColor')?.value?.replace('#', '');
+  if (bc && bc.toUpperCase() !== 'FFF8F0') q.set('bubbleColor', bc);
+
+  const tc = $('textColor')?.value?.replace('#', '');
+  if (tc && tc.toLowerCase() !== '3a2f2f') q.set('textColor', tc);
+
+  const unMode = $('usernameMode')?.checked ? 'usercolor' : 'custom';
+  if (unMode !== 'usercolor')        q.set('usernameMode', unMode);
+
+  const uc = $('usernameColor')?.value?.replace('#', '');
+  if (uc && uc.toLowerCase() !== 'ff7043') q.set('usernameColor', uc);
+
+  const avSz = parseInt($('avatarSize')?.value);
+  if (avSz && avSz !== 54)           q.set('avatarSize', avSz);
 
   // Behavior
-  const maxM = parseInt(els.maxMsg.value);
-  if (maxM !== 8)                            q.set('maxMsg', maxM);
-  const life = els.msgLife.value;
-  if (life !== '30')                         q.set('msgLife', life);
-  const dir = els.scrollDir.value;
-  if (dir !== 'up')                          q.set('scrollDir', dir);
-  const anim = els.animIn.value;
-  if (anim !== 'bounce')                     q.set('animIn', anim);
+  const maxM = parseInt($('maxMsg')?.value);
+  if (maxM && maxM !== 8)            q.set('maxMsg', maxM);
 
-  // Position
-  if (els.positionToggle.checked)            q.set('position', 'right');
+  // msgLife — 0 is valid and means "forever", can't use || fallback
+  const life = $('msgLife')?.value;
+  if (life !== null && life !== '30') q.set('msgLife', life);
+
+  const dir = $('scrollDir')?.value;
+  if (dir && dir !== 'up')           q.set('scrollDir', dir);
+
+  const anim = $('animIn')?.value;
+  if (anim && anim !== 'bounce')     q.set('animIn', anim);
+
+  // Chat position
+  const chatSide = $('chatSide')?.value;
+  if (chatSide && chatSide !== 'left') q.set('chatSide', chatSide);
+
+  const chatX = parseInt($('chatX')?.value ?? 20);
+  if (chatX !== 20)                  q.set('chatX', chatX);
+
+  const chatY = parseInt($('chatY')?.value ?? 20);
+  if (chatY !== 20)                  q.set('chatY', chatY);
 
   // Features
-  if (!els.showPlatform.checked)             q.set('showPlatform', 'false');
-  if (!els.showBadges.checked)               q.set('showBadges', 'false');
-  if (els.showPronouns.checked)              q.set('showPronouns', 'true');  // default false
+  if (!$('showPlatform')?.checked)   q.set('showPlatform', 'false');
+  if (!$('showBadges')?.checked)     q.set('showBadges', 'false');
+  if ($('showPronouns')?.checked)    q.set('showPronouns', 'true');
 
   // Events
-  if (!els.showEvents.checked)               q.set('showEvents', 'false');
-  if (!els.evSub.checked)                    q.set('evSub', 'false');
-  if (!els.evGift.checked)                   q.set('evGift', 'false');
-  if (!els.evCheer.checked)                  q.set('evCheer', 'false');
-  if (!els.evFollow.checked)                 q.set('evFollow', 'false');
-  if (!els.evRaid.checked)                   q.set('evRaid', 'false');
-  if (!els.evYtSuper.checked)                q.set('evYtSuper', 'false');
-  if (!els.evYtMember.checked)               q.set('evYtMember', 'false');
+  if (!$('showEvents')?.checked)     q.set('showEvents', 'false');
+  if (!$('evSub')?.checked)          q.set('evSub', 'false');
+  if (!$('evGift')?.checked)         q.set('evGift', 'false');
+  if (!$('evCheer')?.checked)        q.set('evCheer', 'false');
+  if (!$('evFollow')?.checked)       q.set('evFollow', 'false');
+  if (!$('evRaid')?.checked)         q.set('evRaid', 'false');
+  if (!$('evYtSuper')?.checked)      q.set('evYtSuper', 'false');
+  if (!$('evYtMember')?.checked)     q.set('evYtMember', 'false');
 
   // Shared chat
-  if (!els.showSharedChat.checked)           q.set('showSharedChat', 'false');
+  if (!$('showSharedChat')?.checked) q.set('showSharedChat', 'false');
 
   // Hype train
-  if (!els.showHypeTrain.checked)            q.set('showHypeTrain', 'false');
-  if (els.hypePosTop.checked)                q.set('hypePosTop', 'true');
+  if (!$('showHypeTrain')?.checked)  q.set('showHypeTrain', 'false');
 
-  // Demo flag (preview only)
+  const hypeX = parseInt($('hypeX')?.value ?? -1);
+  if (hypeX !== -1)                  q.set('hypeX', hypeX);
+
+  const hypeY = parseInt($('hypeY')?.value ?? 24);
+  if (hypeY !== 24)                  q.set('hypeY', hypeY);
+
   if (demo) q.set('demo', 'true');
 
   const qs = q.toString();
-  const base = getOverlayBase();
-  return base + (qs ? '?' + qs : '');
+  return OVERLAY_URL + (qs ? '?' + qs : '');
 }
 
-// ── Update everything ─────────────────────────────
+// ── Update UI + preview ───────────────────────────
 function updateAll() {
-  // Validate overlay URL field
-  const urlField = $('overlayUrl');
-  const urlHint  = $('urlHint');
-  if (urlField && urlHint) {
-    const v = urlField.value.trim();
-    if (!v) {
-      urlHint.textContent = '⚠ Enter your overlay URL so the generated link is correct.';
-    } else if (!v.startsWith('http')) {
-      urlHint.textContent = '⚠ Must start with https://';
-    } else if (!v.endsWith('overlay.html')) {
-      urlHint.textContent = '⚠ URL should end with overlay.html';
-    } else {
-      urlHint.textContent = '';
-    }
+  // Toggle custom username color group
+  const customColorGroup = $('customColorGroup');
+  if (customColorGroup)
+    customColorGroup.style.display = $('usernameMode')?.checked ? 'none' : 'block';
+
+  // Event sub-options dimming
+  const evSubOpts = $('eventSubOptions');
+  if (evSubOpts)
+    evSubOpts.classList.toggle('disabled', !$('showEvents')?.checked);
+
+  // Hype train position group dimming
+  const hypePosGrp = $('hypePositionGroup');
+  if (hypePosGrp) {
+    hypePosGrp.style.opacity      = $('showHypeTrain')?.checked ? '1' : '0.4';
+    hypePosGrp.style.pointerEvents = $('showHypeTrain')?.checked ? '' : 'none';
   }
-  // Toggle custom username color visibility
-  els.customColorGroup.style.display = els.usernameMode.checked ? 'none' : 'block';
 
-  // Toggle event sub-options enabled state
-  els.eventSubOptions.classList.toggle('disabled', !els.showEvents.checked);
+  // Update URL
+  $('result').textContent = buildURL(false);
 
-  // Toggle hype train position row
-  els.hypePosRow.style.opacity = els.showHypeTrain.checked ? '1' : '0.4';
-  els.hypePosRow.style.pointerEvents = els.showHypeTrain.checked ? '' : 'none';
-
-  // Update displayed URL
-  els.result.textContent = buildURL(false);
-
-  // Update preview iframe (with demo=true)
-  const demoURL = buildURL(true);
-  if (els.iframe.src !== demoURL) els.iframe.src = demoURL;
+  // Update preview iframe
+  const iframe   = $('widgetPreview');
+  const demoURL  = buildURL(true);
+  if (iframe && iframe.src !== demoURL) iframe.src = demoURL;
 }
 
-// ── Range slider live labels ──────────────────────
-els.fontSize.addEventListener('input',  () => els.fontSizeVal.textContent  = els.fontSize.value);
-els.avatarSize.addEventListener('input',() => els.avatarSizeVal.textContent = els.avatarSize.value);
-els.maxMsg.addEventListener('input',    () => els.maxMsgVal.textContent     = els.maxMsg.value);
+// ── Range slider labels ───────────────────────────
+function wireRange(id, labelId) {
+  const el = $(id), lbl = $(labelId);
+  if (el && lbl) el.addEventListener('input', () => { lbl.textContent = el.value; updateAll(); });
+}
+wireRange('fontSize',   'fontSizeVal');
+wireRange('avatarSize', 'avatarSizeVal');
+wireRange('maxMsg',     'maxMsgVal');
 
-// ── Wire up all inputs ────────────────────────────
+// ── Wire all inputs ───────────────────────────────
 [
-  $('overlayUrl'),
-  els.wsHost, els.wsPort, els.wsPass,
-  els.ignored, els.ignoreCmd,
-  els.fontFamily, els.fontSize, els.bubbleColor, els.textColor,
-  els.usernameMode, els.usernameColor,
-  els.avatarSize,
-  els.maxMsg, els.msgLife, els.scrollDir, els.animIn,
-  els.positionToggle,
-  els.showPlatform, els.showBadges, els.showPronouns,
-  els.showEvents, els.evSub, els.evGift, els.evCheer, els.evFollow,
-  els.evRaid, els.evYtSuper, els.evYtMember,
-  els.showSharedChat,
-  els.showHypeTrain, els.hypePosTop,
-].forEach(el => {
+  'wsHost','wsPort','wsPass',
+  'ignored','ignoreCmd',
+  'fontFamily','customFont','fontSize','bubbleColor','textColor',
+  'usernameMode','usernameColor',
+  'avatarSize',
+  'maxMsg','msgLife','scrollDir','animIn',
+  'chatSide','chatX','chatY',
+  'showPlatform','showBadges','showPronouns',
+  'showEvents','evSub','evGift','evCheer','evFollow','evRaid','evYtSuper','evYtMember',
+  'showSharedChat',
+  'showHypeTrain','hypeX','hypeY',
+].forEach(id => {
+  const el = $(id);
+  if (!el) return;
   el.addEventListener('input',  updateAll);
   el.addEventListener('change', updateAll);
 });
 
 // ── Copy button ───────────────────────────────────
-els.copyBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(els.result.textContent).then(() => {
-    els.copyMsg.style.display = 'inline';
-    setTimeout(() => els.copyMsg.style.display = 'none', 1800);
+$('copyBtn')?.addEventListener('click', () => {
+  const url = $('result')?.textContent || '';
+  navigator.clipboard.writeText(url).then(() => {
+    const msg = $('copyMsg');
+    if (msg) { msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 1800); }
   });
 });
 
 // ── Initial render ────────────────────────────────
 window.addEventListener('load', () => {
-  // Pre-fill the overlay URL field with a smart guess
-  const urlField = $('overlayUrl');
-  if (urlField && !urlField.value) urlField.value = guessOverlayUrl();
-
-  els.customColorGroup.style.display = 'none'; // usernameMode defaults to on
+  const cg = $('customColorGroup');
+  if (cg) cg.style.display = 'none';
   updateAll();
 });
