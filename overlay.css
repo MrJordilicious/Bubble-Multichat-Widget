@@ -1,0 +1,315 @@
+/* ================================================
+   CHAT OVERLAY — overlay.css
+   ================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bubble-color:  #FFF8F0;
+  --text-color:    #3a2f2f;
+  --font-family:   'Nunito', sans-serif;
+  --font-size:     15px;
+  --avatar-size:   54px;
+  --gap:           12px;
+  --pad:           20px;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: transparent !important;
+  overflow: hidden;
+}
+
+body { font-family: var(--font-family); font-size: var(--font-size); }
+
+/* ── Status indicator ──────────────────────────── */
+.status-indicator {
+  position: fixed; top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(10,10,10,0.75);
+  color: #eee; padding: 5px 12px; border-radius: 20px;
+  font-size: 11px; font-family: Arial, sans-serif;
+  z-index: 9999; transition: opacity 0.6s ease;
+  backdrop-filter: blur(6px);
+}
+.status-indicator.hidden { opacity: 0; pointer-events: none; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ff6b6b; animation: blink 1.4s ease-in-out infinite; flex-shrink: 0;
+}
+.status-dot.connected { background: #69db7c; animation: none; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+
+/* ── Hype Train bar ────────────────────────────── */
+.hype-train {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, 90vw);
+  background: linear-gradient(135deg, rgba(88,28,135,0.92), rgba(109,40,217,0.88));
+  backdrop-filter: blur(10px);
+  border-radius: 18px; padding: 12px 20px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 8px 32px rgba(109,40,217,0.55);
+  border: 1px solid rgba(255,255,255,0.18);
+  z-index: 500;
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.hype-train.hidden {
+  opacity: 0; transform: translateX(-50%) translateY(40px); pointer-events: none;
+}
+.hype-train.hype-top { bottom: auto; top: 24px; transform: translateX(-50%); }
+.hype-train.hype-top.hidden { transform: translateX(-50%) translateY(-40px); }
+
+.hype-header {
+  display: flex; align-items: center; gap: 8px;
+  color: #fff; font-weight: 900; font-size: 0.88em; letter-spacing: 1px;
+}
+.hype-icon { font-size: 1.3em; }
+.hype-bar-track {
+  height: 12px; background: rgba(255,255,255,0.18);
+  border-radius: 10px; overflow: hidden;
+}
+.hype-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #c084fc, #f472b6, #fb923c);
+  border-radius: 10px;
+  transition: width 0.7s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 0 10px rgba(244,114,182,0.6);
+}
+.hype-footer {
+  display: flex; justify-content: space-between;
+  color: rgba(255,255,255,0.7); font-size: 0.76em; font-weight: 700;
+}
+
+/* ── Chat container — UP (default) ─────────────── */
+#chat-container {
+  position: fixed;
+  bottom: var(--pad); left: var(--pad);
+  width: min(540px, calc(100vw - var(--pad)*2));
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--gap);
+  max-height: calc(100vh - var(--pad)*2);
+  overflow: hidden; pointer-events: none;
+}
+
+/* RIGHT position */
+#chat-container.pos-right { left: auto; right: var(--pad); align-items: flex-end; }
+#chat-container.pos-right .message { flex-direction: row-reverse; }
+#chat-container.pos-right .bubble { border-radius: 20px 20px 5px 20px; }
+#chat-container.pos-right .username-row { flex-direction: row-reverse; padding-left:0; padding-right:6px; }
+#chat-container.pos-right .platform-badge { right:auto; left:-3px; }
+#chat-container.pos-right .bubble-wrapper { align-items: flex-end; }
+
+/* DOWN direction */
+#chat-container.scroll-down {
+  top: var(--pad); bottom: auto;
+  justify-content: flex-start;
+}
+
+/* HORIZONTAL direction */
+#chat-container.scroll-horizontal {
+  left: 0; right: 0;
+  bottom: var(--pad);
+  width: 100vw;
+  max-height: 150px;
+  flex-direction: row;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  padding: 0 var(--pad);
+  gap: 8px;
+}
+#chat-container.scroll-horizontal.pos-right { flex-direction: row-reverse; }
+#chat-container.scroll-horizontal .message {
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 240px;
+}
+#chat-container.scroll-horizontal .avatar-wrapper {
+  width: calc(var(--avatar-size)*0.72);
+  height: calc(var(--avatar-size)*0.72);
+}
+#chat-container.scroll-horizontal .bubble-wrapper { max-width: 100%; }
+#chat-container.scroll-horizontal .msg-text {
+  display: block; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  max-width: 200px;
+}
+#chat-container.scroll-horizontal .username-row { padding-left:0; }
+
+/* ── Individual message ────────────────────────── */
+.message {
+  display: flex; align-items: flex-end; gap: 10px;
+  max-width: 100%; will-change: transform,opacity;
+  pointer-events: none;
+}
+
+/* ── Avatar ────────────────────────────────────── */
+.avatar-wrapper {
+  position: relative; flex-shrink: 0;
+  width: var(--avatar-size); height: var(--avatar-size);
+}
+.avatar {
+  width:100%; height:100%; border-radius:50%;
+  overflow:hidden; border:3px solid rgba(255,255,255,0.92);
+  box-shadow:0 4px 16px rgba(0,0,0,0.22); background:#f5efe8;
+}
+.avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+
+/* ── Platform badge ────────────────────────────── */
+.platform-badge {
+  position:absolute; bottom:-3px; right:-3px;
+  width:22px; height:22px; border-radius:50%;
+  background:white; border:2px solid white;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2px 7px rgba(0,0,0,0.22); overflow:hidden; padding:3px;
+}
+.platform-icon { width:100%; height:100%; object-fit:contain; display:block; }
+
+/* ── Bubble wrapper ────────────────────────────── */
+.bubble-wrapper {
+  display:flex; flex-direction:column; gap:4px;
+  max-width: calc(100% - var(--avatar-size) - 20px);
+}
+
+/* ── Username row ──────────────────────────────── */
+.username-row {
+  display:flex; align-items:center; gap:5px;
+  padding-left:6px; flex-wrap:wrap;
+}
+.username {
+  font-size:0.80em; font-weight:900;
+  text-shadow:0 1px 5px rgba(0,0,0,0.35); line-height:1;
+}
+
+/* ── Pronouns ──────────────────────────────────── */
+.pronoun {
+  font-size:0.70em; font-weight:700; font-family:Arial,sans-serif;
+  color:rgba(255,255,255,0.75); background:rgba(0,0,0,0.25);
+  padding:1px 6px; border-radius:8px; backdrop-filter:blur(2px);
+  line-height:1.4; flex-shrink:0;
+}
+
+/* ── Badges ────────────────────────────────────── */
+.badge { font-size:0.78em; line-height:1; }
+.badge-pill {
+  font-size:0.68em; font-weight:800; font-family:Arial,sans-serif;
+  color:#fff; padding:2px 7px; border-radius:10px;
+  line-height:1.4; white-space:nowrap;
+}
+.badge-sub     { background:linear-gradient(135deg,#7c3aed,#a855f7); }
+.badge-first   { background:linear-gradient(135deg,#f093fb,#f5576c); }
+.badge-bits    { background:linear-gradient(135deg,#f7971e,#ffd200); color:#333; }
+.badge-member  { background:linear-gradient(135deg,#059669,#34d399); }
+
+/* ── Shared chat label ─────────────────────────── */
+.shared-label {
+  font-size:0.68em; font-weight:700; font-style:italic;
+  color:rgba(255,255,255,0.65); padding-left:6px;
+  text-shadow:0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* ── Speech bubble ─────────────────────────────── */
+.bubble {
+  padding:8px 15px;
+  border-radius:20px 20px 20px 5px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.13);
+  line-height:1.55; word-break:break-word;
+  max-width:100%;
+  background:var(--bubble-color);
+}
+
+/* Shared chat: purple left border */
+.shared-chat .bubble {
+  border-left:3px solid rgba(168,85,247,0.7);
+}
+
+.msg-text { font-size:1em; font-weight:700; color:var(--text-color); }
+.emote {
+  height:1.6em; vertical-align:middle;
+  display:inline-block; margin:0 1px;
+}
+
+/* ── EVENT BUBBLES ─────────────────────────────── */
+.event-bubble .bubble {
+  border-radius:14px;
+  padding:10px 16px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.2);
+}
+.event-title {
+  font-size:0.90em; font-weight:900; color:#fff;
+  text-shadow:0 1px 4px rgba(0,0,0,0.4); line-height:1.35;
+}
+.event-body {
+  font-size:0.78em; color:rgba(255,255,255,0.88);
+  margin-top:5px; font-weight:600; line-height:1.3;
+}
+
+/* Sub / ReSub — Twitch purple */
+.event-sub .bubble,
+.event-resub .bubble {
+  background:linear-gradient(135deg,rgba(109,40,217,0.9),rgba(139,92,246,0.85));
+}
+
+/* Gift — gold/purple */
+.event-gift .bubble {
+  background:linear-gradient(135deg,rgba(109,40,217,0.85),rgba(245,158,11,0.85));
+}
+
+/* Cheer — amber */
+.event-cheer .bubble {
+  background:linear-gradient(135deg,rgba(217,119,6,0.9),rgba(251,191,36,0.85));
+}
+.event-cheer .event-title,
+.event-cheer .event-body { color:#1a0f00; text-shadow:none; }
+
+/* Follow — green */
+.event-follow .bubble {
+  background:linear-gradient(135deg,rgba(5,150,105,0.9),rgba(52,211,153,0.85));
+}
+
+/* Raid — orange-red */
+.event-raid .bubble {
+  background:linear-gradient(135deg,rgba(220,38,38,0.9),rgba(249,115,22,0.85));
+}
+
+/* SuperChat — YouTube red + custom tier color */
+.event-superchat .bubble {
+  background:linear-gradient(135deg,var(--event-accent,#ff0000),rgba(255,70,70,0.75));
+}
+
+/* Member — teal */
+.event-member .bubble {
+  background:linear-gradient(135deg,rgba(20,184,166,0.9),rgba(52,211,153,0.85));
+}
+
+/* ── Animations ────────────────────────────────── */
+@keyframes slideInLeft  { from{transform:translateX(-50px) scale(0.92);opacity:0} to{transform:translateX(0) scale(1);opacity:1} }
+@keyframes slideInRight { from{transform:translateX(50px)  scale(0.92);opacity:0} to{transform:translateX(0) scale(1);opacity:1} }
+@keyframes bounceIn {
+  0%  {transform:scale(0.35) translateY(30px);opacity:0}
+  55% {transform:scale(1.07) translateY(-5px);opacity:1}
+  75% {transform:scale(0.97)}
+  100%{transform:scale(1) translateY(0);opacity:1}
+}
+@keyframes popIn {
+  0%  {transform:scale(0.1);opacity:0}
+  60% {transform:scale(1.09);opacity:1}
+  82% {transform:scale(0.96)}
+  100%{transform:scale(1);opacity:1}
+}
+@keyframes fadeInUp { from{transform:translateY(22px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes fadeOut  {
+  from{opacity:1;transform:scale(1) translateY(0);max-height:180px;margin-bottom:0}
+  to  {opacity:0;transform:scale(0.88) translateY(-8px);max-height:0;margin-bottom:-12px}
+}
+
+.anim-slide       { animation:slideInLeft  0.48s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.anim-slide-right { animation:slideInRight 0.48s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.anim-bounce      { animation:bounceIn     0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.anim-pop         { animation:popIn        0.46s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.anim-fade        { animation:fadeInUp     0.42s ease forwards; }
+
+.message.removing { animation:fadeOut 0.4s ease forwards !important; overflow:hidden; }

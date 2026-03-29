@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&family=Fredoka+One&family=Comic+Neue:wght@700&family=Patrick+Hand&display=swap" />
+  <link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+
+  <!-- Connection status — fades out after connect -->
+  <div id="status" class="status-indicator">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting to Streamer.bot…</span>
+  </div>
+
+  <!-- Hype Train bar — shown during active hype trains -->
+  <div id="hype-train" class="hype-train hidden">
+    <div class="hype-header">
+      <span class="hype-icon">🚂</span>
+      <span id="hype-level">HYPE TRAIN LEVEL 1</span>
+    </div>
+    <div class="hype-bar-track">
+      <div id="hype-bar" class="hype-bar-fill"></div>
+    </div>
+    <div class="hype-footer">
+      <span class="hype-label">Progress</span>
+      <span id="hype-pct">0%</span>
+    </div>
+  </div>
+
+  <!-- Chat messages are injected here -->
+  <div id="chat-container"></div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>

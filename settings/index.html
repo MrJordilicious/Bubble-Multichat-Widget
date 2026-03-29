@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!--
+  AUTHOR: MRJORDILICIOUS
+  URL:    HTTPS://MRJORDILICIOUS.COM
+  TWITCH: HTTPS://TWITCH.TV/MRJORDILICIOUS
+  KOFI:   HTTPS://KO-FI.COM/MRJORDILICIOUS
+  LINKS:  HTTPS://LINKS.MRJORDILICIOUS.COM
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Overlay Customizer</title>
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/MrJordilicious/widgets.mrjordilicious.com/refs/heads/main/_resources/logo.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="layout">
+
+  <!-- LEFT: Settings sidebar -->
+  <div class="sidebar">
+    <div class="header">
+      <a href="https://links.mrjordilicious.com" target="_blank">
+        <img src="https://raw.githubusercontent.com/MrJordilicious/widgets.mrjordilicious.com/refs/heads/main/_resources/logo.png" alt="Logo" />
+      </a>
+      <a href="https://ko-fi.com/mrjordilicious/shop" class="kofi-button" target="_blank">
+        <img src="https://raw.githubusercontent.com/MrJordilicious/widgets.mrjordilicious.com/refs/heads/main/_resources/kofi_symbol.png" alt="Ko-fi" />
+        <span>Check out my exclusive widgets</span>
+      </a>
+    </div>
+
+    <h2>MULTISTREAM CHAT OVERLAY</h2>
+    <small>Supports Twitch + YouTube via Streamer.bot. Customize below, then copy the URL into OBS as a Browser Source.</small>
+    <br /><br />
+
+    <!-- ════════════════════════════════ -->
+    <!--  STREAMER.BOT CONNECTION        -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">🔌 Streamer.bot Connection</div>
+
+    <div class="form-group">
+      <label for="wsHost">WebSocket Host / IP</label>
+      <small>IP of the PC running Streamer.bot. Use <b>127.0.0.1</b> if OBS and Streamer.bot are on the same machine</small>
+      <input type="text" id="wsHost" placeholder="127.0.0.1" value="127.0.0.1" />
+    </div>
+
+    <div class="form-group">
+      <label for="wsPort">WebSocket Port</label>
+      <small>Port of the Streamer.bot WebSocket server. Default is <b>7474</b></small>
+      <input type="text" id="wsPort" placeholder="7474" value="7474" />
+    </div>
+
+    <div class="form-group">
+      <label for="wsPass">WebSocket Password <span class="optional">optional</span></label>
+      <small>Only needed if you've set a password in Streamer.bot's WebSocket server settings</small>
+      <input type="password" id="wsPass" placeholder="Leave empty if no password is set" />
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  FILTERING                      -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">🚫 Filtering</div>
+
+    <div class="form-group">
+      <label for="ignored">Ignored Accounts <span class="optional">optional</span></label>
+      <small>Comma-separated list of usernames whose messages will never appear (e.g. <b>Nightbot, StreamElements</b>)</small>
+      <input type="text" id="ignored" placeholder="e.g. Nightbot, StreamElements, MyBot" />
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Ignore ! commands:</span>
+        <small>Hide messages that start with <b>!</b> (chat bot commands)</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="ignoreCmd" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  APPEARANCE                     -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">🎨 Appearance</div>
+
+    <div class="form-group">
+      <label for="fontFamily">Font</label>
+      <select id="fontFamily">
+        <option value="Nunito">Nunito (Default – friendly &amp; rounded)</option>
+        <option value="Fredoka One">Fredoka One (Fun &amp; bubbly)</option>
+        <option value="Comic Neue">Comic Neue (Casual &amp; playful)</option>
+        <option value="Patrick Hand">Patrick Hand (Handwritten feel)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="fontSize">Font Size: <span id="fontSizeVal">15</span>px</label>
+      <input type="range" id="fontSize" min="11" max="24" value="15" />
+    </div>
+
+    <div class="form-group">
+      <label for="bubbleColor">Bubble Color</label>
+      <small>Background color of chat bubbles</small>
+      <input type="color" id="bubbleColor" value="#FFF8F0" />
+    </div>
+
+    <div class="form-group">
+      <label for="textColor">Message Text Color</label>
+      <input type="color" id="textColor" value="#3a2f2f" />
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Use Twitch username color:</span>
+        <small>Each user's personal Twitch color for their name. When off, uses the color below</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="usernameMode" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group" id="customColorGroup">
+      <label for="usernameColor">Custom Username Color</label>
+      <small>Used for YouTube names and when Twitch color mode is off</small>
+      <input type="color" id="usernameColor" value="#ff7043" />
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  AVATARS                        -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">👤 Avatars</div>
+    <small style="display:block;margin-bottom:14px;color:#666;">Real Twitch &amp; YouTube profile pictures are used automatically. A cute generated avatar is used as fallback when the real one can't be loaded.</small>
+
+    <div class="form-group">
+      <label for="avatarSize">Avatar Size: <span id="avatarSizeVal">54</span>px</label>
+      <input type="range" id="avatarSize" min="36" max="80" value="54" />
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  BEHAVIOR                       -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">⚙️ Behavior</div>
+
+    <div class="form-group">
+      <label for="maxMsg">Max Visible Messages: <span id="maxMsgVal">8</span></label>
+      <input type="range" id="maxMsg" min="3" max="20" value="8" />
+    </div>
+
+    <div class="form-group">
+      <label for="msgLife">Message Lifetime</label>
+      <small>How long before messages fade out (0 = stay forever)</small>
+      <select id="msgLife">
+        <option value="0">Forever</option>
+        <option value="15">15 seconds</option>
+        <option value="30" selected>30 seconds</option>
+        <option value="45">45 seconds</option>
+        <option value="60">1 minute</option>
+        <option value="90">90 seconds</option>
+        <option value="120">2 minutes</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="scrollDir">Scroll Direction</label>
+      <small>How new messages appear and old ones leave</small>
+      <select id="scrollDir">
+        <option value="up" selected>↑ Upward — new messages appear at the bottom</option>
+        <option value="down">↓ Downward — new messages appear at the top</option>
+        <option value="horizontal">↔ Horizontal — messages stack side by side</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="animIn">Entry Animation</label>
+      <select id="animIn">
+        <option value="slide">Slide In (smooth, from side)</option>
+        <option value="bounce" selected>Bounce In (playful spring)</option>
+        <option value="pop">Pop In (scale from center)</option>
+        <option value="fade">Fade Up (subtle)</option>
+      </select>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  POSITION                       -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">📐 Position</div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Show on right side:</span>
+        <small>Place the overlay on the right side of your scene</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="positionToggle" />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  FEATURES                       -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">✨ Features</div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Show platform icon:</span>
+        <small>Twitch/YouTube badge on each avatar</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="showPlatform" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Show user badges:</span>
+        <small>Mod, Sub, VIP, first chat, bits badges</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="showBadges" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Show pronouns:</span>
+        <small>Fetches pronouns from <b>pronouns.alejo.io</b> for users who've set them</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="showPronouns" />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  EVENT NOTIFICATIONS            -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">🎉 Event Notifications</div>
+    <small style="display:block;margin-bottom:12px;">Show styled notification bubbles for channel events. Each type can be toggled individually.</small>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>🎉 Enable event notifications:</span>
+        <small>Master toggle — disabling this hides all events below</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="showEvents" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div id="eventSubOptions" class="sub-options">
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>🎊 Subscriptions &amp; Resubs</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evSub" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>🎁 Gift subs &amp; Gift bombs</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evGift" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>⭐ Twitch Cheers / Bits</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evCheer" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>💜 Follows</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evFollow" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>🚀 Raids</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evRaid" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>💰 YouTube Super Chats</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evYtSuper" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-row sub-row">
+        <div class="setting-label">
+          <span>🌟 YouTube Memberships</span>
+        </div>
+        <div class="setting-right">
+          <label class="switch">
+            <input type="checkbox" id="evYtMember" checked />
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  SHARED CHAT                    -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">🔗 Twitch Shared Chat</div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Show shared chat messages:</span>
+        <small>Show messages from other channels in a shared streaming session. They appear with a special <b>📡 from @channel</b> label</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="showSharedChat" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  HYPE TRAIN                     -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">🚂 Hype Train</div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <span>Show Hype Train bar:</span>
+        <small>Display a progress bar when a Twitch Hype Train is active</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="showHypeTrain" checked />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-row" id="hypePosRow">
+      <div class="setting-label">
+        <span>Hype Train bar at top:</span>
+        <small>Show the bar at the top of the scene instead of the bottom</small>
+      </div>
+      <div class="setting-right">
+        <label class="switch">
+          <input type="checkbox" id="hypePosTop" />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════ -->
+    <!--  SETUP INSTRUCTIONS             -->
+    <!-- ════════════════════════════════ -->
+    <div class="section-title">📋 Setup Instructions</div>
+    <div class="instructions">
+      <ol>
+        <li>In <b>Streamer.bot</b> go to <b>Servers/Clients → WebSocket Server</b> and enable it (default port 7474)</li>
+        <li>Add a <b>Browser Source</b> in OBS and paste the generated URL below</li>
+        <li>Set the browser source size to your canvas (e.g. <b>1920×1080</b>)</li>
+        <li>Check <b>"Allow transparency"</b> in the browser source settings</li>
+        <li>Leave <b>Custom CSS</b> empty</li>
+        <li>For Shared Chat: make sure Streamer.bot has the other channel connected</li>
+      </ol>
+    </div>
+
+    <hr class="divider" />
+
+    <label>Copy this URL into OBS as a Browser Source</label>
+    <div id="result" class="url-display">Loading…</div>
+    <button id="copyBtn">Copy URL</button>
+    <span id="copyMsg">Copied to clipboard!</span>
+  </div>
+
+  <!-- RIGHT: Live preview -->
+  <div class="preview">
+    <h2>LIVE PREVIEW</h2>
+    <p class="preview-note">↓ Live preview with sample messages. In OBS, real Twitch &amp; YouTube chat will appear here.</p>
+    <div class="preview-frame-wrapper">
+      <iframe id="widgetPreview" src="" frameborder="0"></iframe>
+    </div>
+  </div>
+
+</div>
+<script src="script.js"></script>
+</body>
+</html>
