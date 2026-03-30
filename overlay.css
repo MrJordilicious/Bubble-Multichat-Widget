@@ -103,7 +103,7 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
 }
 #chat-container.pos-right .message { flex-direction: row-reverse; }
 #chat-container.pos-right .bubble { border-radius: 20px 20px 5px 20px; }
-#chat-container.pos-right .username-row { flex-direction: row-reverse; padding-left:0; padding-right:6px; }
+#chat-container.pos-right .username-row { flex-direction: row-reverse; padding-left:0; padding-right:6px; flex-wrap:nowrap; }
 #chat-container.pos-right .platform-badge { right:auto; left:-3px; }
 #chat-container.pos-right .bubble-wrapper { align-items: flex-end; }
 
@@ -184,11 +184,19 @@ body { font-family: var(--font-family); font-size: var(--font-size); }
 /* ── Username row ──────────────────────────────── */
 .username-row {
   display:flex; align-items:center; gap:5px;
-  padding-left:6px; flex-wrap:wrap;
+  padding-left:6px;
+  flex-wrap: nowrap;        /* always one line */
+  overflow: hidden;
+  min-width: 0;
 }
 .username {
   font-size: var(--username-size, 0.85em); font-weight:900;
   text-shadow:0 1px 5px rgba(0,0,0,0.35); line-height:1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 /* ── Pronouns ──────────────────────────────────── */

@@ -44,6 +44,9 @@ function buildURL(demo) {
   if (pass)                         q.set('wsPass', pass);
 
   // Filtering
+  const twitchChannel = $('twitchChannel')?.value?.trim().toLowerCase();
+  if (twitchChannel)                 q.set('twitchChannel', twitchChannel);
+
   const ignored = $('ignored')?.value?.trim().replace(/\s*,\s*/g, ',');
   if (ignored)                       q.set('ignored', ignored);
   if (!$('ignoreCmd')?.checked)      q.set('ignoreCmd', 'false');
@@ -181,7 +184,7 @@ wireRange('maxMsg',        'maxMsgVal');
 // ── Wire all inputs ───────────────────────────────
 [
   'wsHost','wsPort','wsPass',
-  'ignored','ignoreCmd',
+  'twitchChannel','ignored','ignoreCmd',
   'fontFamily','customFont','fontSize','usernameSize','bubbleColor','textColor',
   'usernameMode','usernameColor',
   'avatarSize',

@@ -69,6 +69,7 @@ const cfg = {
   hypeY:         pInt('hypeY', 24),   // px from top
 
   demo: P.get('demo') === 'true',
+  twitchChannel: P.get('twitchChannel') || '',  // used to pre-load BTTV/FFZ emotes
 };
 
 // ═══════════════════════════════════════════════════
@@ -220,6 +221,12 @@ async function getPronoun(username) {
 
 if (cfg.showPronouns) loadPronounsList();
 
+// Load third-party emotes if channel is known up front
+if (cfg.twitchChannel) loadThirdPartyEmotes(cfg.twitchChannel);
+
+// Track whether we've already loaded emotes (so first ChatMessage can trigger it once)
+let emotesLoaded = !!cfg.twitchChannel;
+
 // ═══════════════════════════════════════════════════
 // STREAMER.BOT WEBSOCKET
 // ═══════════════════════════════════════════════════
@@ -335,7 +342,7 @@ function handleEvent(data) {
       case 'ReSub':           return cfg.showEvents && cfg.evSub    && onReSub(d);
       case 'GiftSub':         return cfg.showEvents && cfg.evGift   && onGiftSub(d);
       case 'GiftBomb':        return cfg.showEvents && cfg.evGift   && onGiftBomb(d);
-      case 'Cheer':           return cfg.showEvents && cfg.evCheer     && onCheer(d);
+      case 'Cheer':           return (cfg.showEvents && (cfg.evCheer || cfg.evBitsCombo)) && onCheer(d);
       case 'CheerCombo':      return cfg.showEvents && cfg.evBitsCombo && onCheerCombo(d);
       case 'Follow':          return cfg.showEvents && cfg.evFollow && onFollow(d);
       case 'Raid':            return cfg.showEvents && cfg.evRaid   && onRaid(d);
@@ -360,25 +367,37 @@ function handleEvent(data) {
 // ═══════════════════════════════════════════════════
 // STREAMER.BOT DATA HELPERS
 // ═══════════════════════════════════════════════════
-function extractUser(d) {
-  // Newer Streamer.bot (0.2.x): user wrapped in d.user object
-  if (d?.user && (d.user.login || d.user.displayName || d.user.userId)) {
+function extractUser(d, platform) {
+  // ── Newer Streamer.bot (0.2.x): d.user object ──
+  if (d?.user && (d.user.login || d.user.displayName || d.user.userId || d.user.channelId)) {
     return {
-      displayName: d.user.displayName || d.user.login || 'Unknown',
-      login:       d.user.login       || d.user.userLogin || d.user.displayName || '',
-      avatarUrl:   d.user.profileImageUrl || d.user.profile_image_url || '',
+      displayName: d.user.displayName || d.user.name || d.user.login || 'Unknown',
+      login:       d.user.login       || d.user.userLogin || d.user.displayName || d.user.channelId || '',
+      avatarUrl:   d.user.profileImageUrl || d.user.profile_image_url || d.user.profilePhoto || '',
       color:       d.user.color || null,
     };
   }
-  // Older SB: user fields directly on d itself.
-  // Only use d.message as a user source if it actually has identity fields —
-  // some events (raids, cheers) set d.message to a message object that has
-  // no username, causing displayName to resolve as 'Unknown'.
+
+  // ── YouTube-specific fields that Streamer.bot uses ──
+  // SB sends YouTube messages with author/authorName/authorPhoto at the top level or in d.message
+  const yt = d?.message || d || {};
+  if (platform === 'youtube') {
+    const name = yt.author || yt.authorName || yt.displayName || yt.username
+              || d?.author || d?.authorName || d?.displayName || d?.username;
+    const photo = yt.authorPhoto || yt.profileImageUrl || yt.thumbnail
+               || d?.authorPhoto || d?.profileImageUrl || d?.thumbnail || '';
+    const id    = yt.authorChannelId || yt.channelId || yt.authorId
+               || d?.authorChannelId || d?.channelId || d?.authorId || '';
+    if (name) {
+      return { displayName: name, login: id || name, avatarUrl: photo, color: null };
+    }
+  }
+
+  // ── Older SB: fields on d.message or d directly ──
   const msgSrc = d?.message;
   const hasMsgIdentity = msgSrc && (msgSrc.displayName || msgSrc.username || msgSrc.login);
   const src = hasMsgIdentity ? msgSrc : (d || {});
   return {
-    // Raid events use d.from or d.username; cover all common field names
     displayName: src.displayName || src.username || src.login || src.userLogin
               || d?.displayName  || d?.username  || d?.from   || 'Unknown',
     login:       src.username    || src.login    || src.userLogin || src.from
@@ -411,8 +430,17 @@ function shouldFilter(username, text) {
 // TWITCH CHAT HANDLER
 // ═══════════════════════════════════════════════════
 async function onTwitchChat(d) {
-  const user = extractUser(d);
+  const user = extractUser(d, 'twitch');
   const msg  = extractMessage(d);
+  if (!msg.text) return;
+  if (shouldFilter(user.login, msg.text)) return;
+
+  // Auto-load BTTV/FFZ emotes on first message using the broadcaster login
+  // Streamer.bot includes the channel name in d.channel or d.message.channel
+  if (!emotesLoaded) {
+    const chan = d?.channel || d?.message?.channel || d?.broadcasterUserLogin || '';
+    if (chan) { emotesLoaded = true; loadThirdPartyEmotes(chan); }
+  }
   if (!msg.text) return;
   if (shouldFilter(user.login, msg.text)) return;
 
@@ -462,12 +490,16 @@ async function onTwitchChat(d) {
 // YOUTUBE CHAT HANDLER
 // ═══════════════════════════════════════════════════
 async function onYouTubeChat(d) {
-  const user = extractUser(d);
+  const user = extractUser(d, 'youtube');
   const msg  = extractMessage(d);
   if (!msg.text) return;
   if (shouldFilter(user.login, msg.text)) return;
 
-  const m = d?.message ?? d ?? {};
+  // Badge flags for YouTube
+  const m = (typeof d?.message === 'object' && d.message !== null) ? d.message : (d || {});
+  const isOwner    = m.isOwner    ?? d?.isOwner    ?? false;
+  const isModerator= m.isModerator ?? d?.isModerator ?? false;
+  const isMember   = m.isMember   || m.isSponsor   || d?.isMember || d?.isSponsor || false;
 
   addChatBubble({
     platform:    'youtube',
@@ -476,9 +508,9 @@ async function onYouTubeChat(d) {
     color:       null,
     text:        msg.text,
     emotes:      [],
-    isOwner:     m.isOwner,
-    isModerator: m.isModerator,
-    isMember:    m.isMember || m.isSponsor,
+    isOwner,
+    isModerator,
+    isMember,
     avatarUrl:   user.avatarUrl,
     pronoun:     '',
     isShared:    false,
@@ -491,7 +523,7 @@ async function onYouTubeChat(d) {
 // All use extractUser(d) so we handle both SB versions
 // ═══════════════════════════════════════════════════
 function onSub(d) {
-  const user = extractUser(d);
+  const user = extractUser(d, 'twitch');
   const msg  = extractMessage(d);
   const tier = tierLabel(d.subTier || d.tier || d.subPlan);
   const prime = (d.isPrime || d.subPlan === 'Prime') ? ' (Prime)' : '';
@@ -506,7 +538,7 @@ function onSub(d) {
 }
 
 function onReSub(d) {
-  const user   = extractUser(d);
+  const user   = extractUser(d, 'twitch');
   const msg    = extractMessage(d);
   const months = d.cumulativeMonths || d.months || '?';
   addEventBubble({
@@ -519,7 +551,7 @@ function onReSub(d) {
 }
 
 function onGiftSub(d) {
-  const user      = extractUser(d);
+  const user      = extractUser(d, 'twitch');
   // Recipient can be in d.recipient or d.recipientUser
   const recipient = d.recipient?.displayName || d.recipient?.login
     || d.recipientUser?.displayName || d.recipientUser?.login
@@ -534,7 +566,7 @@ function onGiftSub(d) {
 }
 
 function onGiftBomb(d) {
-  const user = extractUser(d);
+  const user = extractUser(d, 'twitch');
   const qty  = d.gifts || d.amount || d.quantity || '?';
   addEventBubble({
     icon: '💣', type: 'gift', platform: 'twitch',
@@ -546,9 +578,25 @@ function onGiftBomb(d) {
 }
 
 function onCheer(d) {
-  const user = extractUser(d);
+  const user = extractUser(d, 'twitch');
   const msg  = extractMessage(d);
   const bits = d.bits || d.amount || 0;
+
+  // Bits Combo: SB sets d.combo (or d.isCombo) when multiple viewers cheer together
+  const isCombo = d.combo || d.isCombo || d.cheerCombo;
+  if (isCombo && cfg.evBitsCombo) {
+    const count = d.comboCount || d.userCount || d.combo?.count || '?';
+    addEventBubble({
+      icon: '🌟', type: 'cheer', platform: 'twitch',
+      username:  user.displayName || 'Chat',
+      avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+      title: `Bits Combo — ${bits} bits!`,
+      body:  `${count} viewers joined the combo! 🎉`,
+    });
+    return;
+  }
+
+  if (!cfg.evCheer) return;
   addEventBubble({
     icon: '⭐', type: 'cheer', platform: 'twitch',
     username:  user.displayName,
@@ -559,21 +607,21 @@ function onCheer(d) {
 }
 
 function onCheerCombo(d) {
-  // Bits Combo — multiple viewers combining cheers into a single burst
-  const total    = d.total || d.bits || d.amount || 0;
-  const count    = d.count || d.userCount || d.users || '?';
-  const topUser  = extractUser(d);
+  // Also called directly from the router if SB does emit CheerCombo separately
+  const user  = extractUser(d, 'twitch');
+  const total = d.total || d.bits || d.amount || 0;
+  const count = d.count || d.userCount || d.users || '?';
   addEventBubble({
     icon: '🌟', type: 'cheer', platform: 'twitch',
-    username:  topUser.displayName || 'Chat',
-    avatarUrl: getAvatarUrl('twitch', topUser.login, topUser.avatarUrl),
+    username:  user.displayName || 'Chat',
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `Bits Combo — ${total} bits!`,
     body:  `${count} viewers joined the combo! 🎉`,
   });
 }
 
 function onFollow(d) {
-  const user = extractUser(d);
+  const user = extractUser(d, 'twitch');
   addEventBubble({
     icon: '💜', type: 'follow', platform: 'twitch',
     username:  user.displayName,
@@ -584,7 +632,7 @@ function onFollow(d) {
 }
 
 function onRaid(d) {
-  const user    = extractUser(d);
+  const user    = extractUser(d, 'twitch');
   const viewers = d.viewerCount || d.viewers || d.raiderCount || '?';
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
@@ -599,7 +647,7 @@ function onRaid(d) {
 // YOUTUBE EVENT HANDLERS
 // ═══════════════════════════════════════════════════
 function onSuperChat(d) {
-  const user   = extractUser(d);
+  const user   = extractUser(d, 'twitch');
   const msg    = extractMessage(d);
   const amount = d.formattedAmount || d.amount || '';
   addEventBubble({
@@ -613,7 +661,7 @@ function onSuperChat(d) {
 }
 
 function onYTMember(d, isMilestone) {
-  const user   = extractUser(d);
+  const user   = extractUser(d, 'twitch');
   const months = d.months || d.monthCount || '?';
   addEventBubble({
     icon: '🌟', type: 'member', platform: 'youtube',
@@ -774,22 +822,78 @@ function removeMsg(el) {
 }
 
 // ═══════════════════════════════════════════════════
-// TWITCH EMOTE PARSER
+// THIRD-PARTY EMOTES — BTTV + FFZ
+// Fetched once when the overlay loads using the Twitch
+// channel name derived from the Streamer.bot connection.
+// Falls back gracefully if the fetch fails.
 // ═══════════════════════════════════════════════════
+const thirdPartyEmotes = new Map(); // code → img URL
+
+async function loadThirdPartyEmotes(channelLogin) {
+  if (!channelLogin) return;
+  try {
+    // BTTV global emotes
+    const bttvGlobal = await fetch('https://api.betterttv.net/3/cached/emotes/global')
+      .then(r => r.json());
+    for (const e of bttvGlobal) {
+      thirdPartyEmotes.set(e.code, `https://cdn.betterttv.net/emote/${e.id}/1x`);
+    }
+  } catch (_) {}
+
+  try {
+    // BTTV channel emotes (needs channel ID — we resolve via Twitch name lookup)
+    const bttvChan = await fetch(`https://api.betterttv.net/3/cached/users/twitch/${encodeURIComponent(channelLogin)}`)
+      .then(r => r.json());
+    const all = [...(bttvChan.channelEmotes || []), ...(bttvChan.sharedEmotes || [])];
+    for (const e of all) {
+      thirdPartyEmotes.set(e.code, `https://cdn.betterttv.net/emote/${e.id}/1x`);
+    }
+  } catch (_) {}
+
+  try {
+    // FFZ channel emotes
+    const ffz = await fetch(`https://api.frankerfacez.com/v1/room/${encodeURIComponent(channelLogin)}`)
+      .then(r => r.json());
+    for (const set of Object.values(ffz.sets || {})) {
+      for (const e of set.emoticons || []) {
+        const url = e.urls?.['1'] || e.urls?.['2'];
+        if (url) thirdPartyEmotes.set(e.name, url.startsWith('//') ? 'https:' + url : url);
+      }
+    }
+  } catch (_) {}
+}
+
+// ── EMOTE PARSER — Twitch built-in + BTTV/FFZ word replacement ──
 function parseEmotes(text, emotes) {
-  if (!emotes?.length) return esc(text);
-  const chars  = [...text];
-  const sorted = [...emotes].sort((a, b) => a.startIndex - b.startIndex);
-  let result = '', cursor = 0;
-  for (const em of sorted) {
-    if (em.startIndex > cursor)
-      result += esc(chars.slice(cursor, em.startIndex).join(''));
-    const name = chars.slice(em.startIndex, em.endIndex + 1).join('');
-    result += `<img class="emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${em.id}/default/dark/1.0" alt="${esc(name)}" />`;
-    cursor = em.endIndex + 1;
+  // Step 1: replace Twitch emotes by index range
+  let result = '';
+  if (emotes?.length) {
+    const chars  = [...text];
+    const sorted = [...emotes].sort((a, b) => a.startIndex - b.startIndex);
+    let cursor = 0;
+    for (const em of sorted) {
+      if (em.startIndex > cursor)
+        result += escAndReplaceThirdParty(chars.slice(cursor, em.startIndex).join(''));
+      const name = chars.slice(em.startIndex, em.endIndex + 1).join('');
+      result += `<img class="emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${em.id}/default/dark/1.0" alt="${esc(name)}" />`;
+      cursor = em.endIndex + 1;
+    }
+    if (cursor < chars.length)
+      result += escAndReplaceThirdParty(chars.slice(cursor).join(''));
+  } else {
+    result = escAndReplaceThirdParty(text);
   }
-  if (cursor < chars.length) result += esc(chars.slice(cursor).join(''));
   return result;
+}
+
+// Replace BTTV/FFZ emote codes in a plain-text segment (word by word)
+function escAndReplaceThirdParty(segment) {
+  if (!thirdPartyEmotes.size) return esc(segment);
+  return segment.split(' ').map(word => {
+    const url = thirdPartyEmotes.get(word);
+    if (url) return `<img class="emote" src="${url}" alt="${esc(word)}" title="${esc(word)}" />`;
+    return esc(word);
+  }).join(' ');
 }
 
 // ═══════════════════════════════════════════════════
