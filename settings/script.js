@@ -129,6 +129,7 @@ function buildURL(demo) {
   if (hypeY !== 24)                  q.set('hypeY', hypeY);
 
   if (demo) q.set('demo', 'true');
+  if ($('debugMode')?.checked) q.set('debug', 'true');
 
   const qs = q.toString();
   return OVERLAY_URL + (qs ? '?' + qs : '');
@@ -194,6 +195,7 @@ wireRange('maxMsg',        'maxMsgVal');
   'showEvents','evSub','evGift','evCheer','evBitsCombo','evFollow','evRaid','evYtSuper','evYtMember',
   'showSharedChat',
   'showHypeTrain','hypeX','hypeY',
+  'debugMode',
 ].forEach(id => {
   const el = $(id);
   if (!el) return;
