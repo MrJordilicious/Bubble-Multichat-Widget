@@ -89,11 +89,13 @@ root.style.setProperty('--badge-size',    (s * 0.80).toFixed(3) + 'em');
 // ═══════════════════════════════════════════════════
 // DOM REFERENCES
 // ═══════════════════════════════════════════════════
-const container = document.getElementById('chat-container');
-const statusEl  = document.getElementById('status');
-const statusDot = document.getElementById('statusDot');
-const statusTxt = document.getElementById('statusText');
-const hypeEl    = document.getElementById('hype-train');
+const container   = document.getElementById('chat-container');
+const statusEl    = document.getElementById('status');
+const statusDot   = document.getElementById('statusDot');
+const statusIcon  = document.getElementById('statusIcon');
+const statusTitle = document.getElementById('statusTitle');
+const statusTxt   = document.getElementById('statusText');
+const hypeEl      = document.getElementById('hype-train');
 const hypeBar   = document.getElementById('hype-bar');
 const hypeLvl   = document.getElementById('hype-level');
 const hypePct   = document.getElementById('hype-pct');
@@ -168,7 +170,12 @@ function getAvatarUrl(platform, login, providedUrl) {
   } else {
     url = fallbackAvatar(login);
   }
-  avatarCache.set(key, url);
+  // Only cache URLs we got from Streamer.bot directly (profileImageUrl).
+  // unavatar.io lookups are NOT cached here so a transient rate-limit failure
+  // doesn't permanently poison the cache for that user this session.
+  if (providedUrl && providedUrl.startsWith('http')) {
+    avatarCache.set(key, url);
+  }
   return url;
 }
 
@@ -303,16 +310,32 @@ function replaceThirdParty(segment) {
 let ws, reconnectTimer, subscribed = false;
 
 function setStatus(state) {
-  statusEl.classList.remove('hidden');
-  statusDot.classList.remove('connected');
+  statusEl.classList.remove('hidden', 'is-connected', 'is-error');
+  statusIcon.classList.remove('is-connected', 'is-error');
+
+  const subEl = document.getElementById('statusSub');
+
   if (state === 'connected') {
-    statusDot.classList.add('connected');
-    statusTxt.textContent = 'Connected ✓';
-    setTimeout(() => statusEl.classList.add('hidden'), 3000);
+    statusEl.classList.add('is-connected');
+    statusIcon.classList.add('is-connected');
+    statusTitle.textContent = 'Streamer.bot';
+    statusTxt.textContent   = 'Connected';
+    if (subEl) subEl.textContent = 'Receiving events ✓';
+    setTimeout(() => statusEl.classList.add('hidden'), 3500);
   } else if (state === 'auth') {
-    statusTxt.textContent = 'Authenticating…';
+    statusTitle.textContent = 'Streamer.bot';
+    statusTxt.textContent   = 'Authenticating…';
+    if (subEl) subEl.textContent = 'Verifying password';
+  } else if (state === 'disconnected') {
+    statusEl.classList.add('is-error');
+    statusIcon.classList.add('is-error');
+    statusTitle.textContent = 'Streamer.bot';
+    statusTxt.textContent   = 'Disconnected';
+    if (subEl) subEl.textContent = 'Retrying in 5 seconds…';
   } else {
-    statusTxt.textContent = 'Connecting to Streamer.bot…';
+    statusTitle.textContent = 'Streamer.bot';
+    statusTxt.textContent   = 'Connecting…';
+    if (subEl) subEl.textContent = `${cfg.wsHost}:${cfg.wsPort}`;
   }
 }
 
@@ -643,13 +666,18 @@ function onFollow(d) {
 }
 
 function onRaid(d) {
-  const user    = extractUser(d);
-  const viewers = d.viewerCount || d.viewers || d.raiderCount || '?';
+  // Streamer.bot places the raiding channel under d.from, not d.user
+  const fromUser = d?.from;
+  const displayName = fromUser?.name || fromUser?.login || fromUser?.displayName
+    || d?.raiderName || extractUser(d).displayName;
+  const login     = fromUser?.login || fromUser?.name || d?.raiderLogin || '';
+  const avatarUrl = fromUser?.profileImageUrl || fromUser?.profile_image_url || '';
+  const viewers   = d.viewerCount || d.viewers || d.raiderCount || '?';
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
-    username:  user.displayName,
-    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
-    title: `${esc(user.displayName)} is raiding!`,
+    username:  displayName,
+    avatarUrl: getAvatarUrl('twitch', login, avatarUrl),
+    title: `${esc(displayName)} is raiding!`,
     body:  `Bringing ${viewers} viewers 🚀`,
   });
 }
@@ -738,7 +766,7 @@ async function addChatBubble(msg) {
     <div class="avatar-wrapper">
       <div class="avatar">
         <img src="${avatarUrl}" alt="${esc(msg.username)}" loading="lazy"
-             onerror="if(this.src!=='${fbAvatar}')this.src='${fbAvatar}'" />
+             onerror="this.onerror=null;this.src='${fbAvatar}'" />
       </div>
       ${platformHtml}
     </div>
@@ -768,7 +796,7 @@ function addEventBubble(ev) {
     <div class="avatar-wrapper">
       <div class="avatar">
         <img src="${ev.avatarUrl}" alt="${esc(ev.username)}" loading="lazy"
-             onerror="if(this.src!=='${fbAvatar}')this.src='${fbAvatar}'" />
+             onerror="this.onerror=null;this.src='${fbAvatar}'" />
       </div>
       ${cfg.showPlatform ? `<div class="platform-badge"><img class="platform-icon" src="${getPlatformIcon(ev.platform)}" alt="${ev.platform}"/></div>` : ''}
     </div>

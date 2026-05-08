@@ -11,10 +11,22 @@
 </head>
 <body>
 
-  <!-- Connection status — fades out after connect -->
-  <div id="status" class="status-indicator">
+  <!-- Connection status — centered card, fades out after connect -->
+  <div id="status" class="status-card">
+    <div class="status-card__panel">
+      <div class="status-card__icon" id="statusIcon">
+        <svg class="status-spinner" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" stroke-width="3.5"
+                  stroke-linecap="round" stroke-dasharray="90 28" />
+        </svg>
+      </div>
+      <div class="status-card__body">
+        <div class="status-card__title" id="statusTitle">Streamer.bot</div>
+        <div class="status-card__text"  id="statusText">Connecting…</div>
+        <div class="status-card__sub"   id="statusSub"></div>
+      </div>
+    </div>
     <div class="status-dot" id="statusDot"></div>
-    <span id="statusText">Connecting to Streamer.bot…</span>
   </div>
 
   <!-- Hype Train bar — shown during active hype trains -->
