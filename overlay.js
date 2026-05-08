@@ -44,7 +44,6 @@ const cfg = {
   evSub:         P.get('evSub')         !== 'false',
   evGift:        P.get('evGift')        !== 'false',
   evCheer:       P.get('evCheer')       !== 'false',
-  evBitsCombo:   P.get('evBitsCombo')   !== 'false',
   evFollow:      P.get('evFollow')      !== 'false',
   evRaid:        P.get('evRaid')        !== 'false',
   evYtSuper:     P.get('evYtSuper')     !== 'false',
@@ -419,7 +418,7 @@ function handleEvent(data) {
       case 'ReSub':           return cfg.showEvents && cfg.evSub    && onReSub(d);
       case 'GiftSub':         return cfg.showEvents && cfg.evGift   && onGiftSub(d);
       case 'GiftBomb':        return cfg.showEvents && cfg.evGift   && onGiftBomb(d);
-      case 'Cheer':           return cfg.showEvents && (cfg.evCheer || cfg.evBitsCombo) && onCheer(d);
+      case 'Cheer':           return cfg.showEvents && cfg.evCheer && onCheer(d);
       case 'Follow':          return cfg.showEvents && cfg.evFollow  && onFollow(d);
       case 'Raid':            return cfg.showEvents && cfg.evRaid    && onRaid(d);
       case 'HypeTrainStart':  return onHypeStart(d);

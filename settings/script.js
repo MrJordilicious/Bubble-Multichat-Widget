@@ -110,7 +110,6 @@ function buildURL(demo) {
   if (!$('evSub')?.checked)          q.set('evSub', 'false');
   if (!$('evGift')?.checked)         q.set('evGift', 'false');
   if (!$('evCheer')?.checked)        q.set('evCheer', 'false');
-  if (!$('evBitsCombo')?.checked)    q.set('evBitsCombo', 'false');
   if (!$('evFollow')?.checked)       q.set('evFollow', 'false');
   if (!$('evRaid')?.checked)         q.set('evRaid', 'false');
   if (!$('evYtSuper')?.checked)      q.set('evYtSuper', 'false');
@@ -192,7 +191,7 @@ wireRange('maxMsg',        'maxMsgVal');
   'maxMsg','msgLife','scrollDir','animIn',
   'chatSide','chatX','chatY',
   'showPlatform','showBadges','showPronouns',
-  'showEvents','evSub','evGift','evCheer','evBitsCombo','evFollow','evRaid','evYtSuper','evYtMember',
+  'showEvents','evSub','evGift','evCheer','evFollow','evRaid','evYtSuper','evYtMember',
   'showSharedChat',
   'showHypeTrain','hypeX','hypeY',
   'debugMode',
