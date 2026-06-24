@@ -44,6 +44,7 @@ const cfg = {
   evSub:         P.get('evSub')         !== 'false',
   evGift:        P.get('evGift')        !== 'false',
   evCheer:       P.get('evCheer')       !== 'false',
+  evBitsCombo:   P.get('evBitsCombo')   !== 'false',
   evFollow:      P.get('evFollow')      !== 'false',
   evRaid:        P.get('evRaid')        !== 'false',
   evYtSuper:     P.get('evYtSuper')     !== 'false',
@@ -88,13 +89,11 @@ root.style.setProperty('--badge-size',    (s * 0.80).toFixed(3) + 'em');
 // ═══════════════════════════════════════════════════
 // DOM REFERENCES
 // ═══════════════════════════════════════════════════
-const container   = document.getElementById('chat-container');
-const statusEl    = document.getElementById('status');
-const statusDot   = document.getElementById('statusDot');
-const statusIcon  = document.getElementById('statusIcon');
-const statusTitle = document.getElementById('statusTitle');
-const statusTxt   = document.getElementById('statusText');
-const hypeEl      = document.getElementById('hype-train');
+const container = document.getElementById('chat-container');
+const statusEl  = document.getElementById('status');
+const statusDot = document.getElementById('statusDot');
+const statusTxt = document.getElementById('statusText');
+const hypeEl    = document.getElementById('hype-train');
 const hypeBar   = document.getElementById('hype-bar');
 const hypeLvl   = document.getElementById('hype-level');
 const hypePct   = document.getElementById('hype-pct');
@@ -169,12 +168,7 @@ function getAvatarUrl(platform, login, providedUrl) {
   } else {
     url = fallbackAvatar(login);
   }
-  // Only cache URLs we got from Streamer.bot directly (profileImageUrl).
-  // unavatar.io lookups are NOT cached here so a transient rate-limit failure
-  // doesn't permanently poison the cache for that user this session.
-  if (providedUrl && providedUrl.startsWith('http')) {
-    avatarCache.set(key, url);
-  }
+  avatarCache.set(key, url);
   return url;
 }
 
@@ -309,32 +303,16 @@ function replaceThirdParty(segment) {
 let ws, reconnectTimer, subscribed = false;
 
 function setStatus(state) {
-  statusEl.classList.remove('hidden', 'is-connected', 'is-error');
-  statusIcon.classList.remove('is-connected', 'is-error');
-
-  const subEl = document.getElementById('statusSub');
-
+  statusEl.classList.remove('hidden');
+  statusDot.classList.remove('connected');
   if (state === 'connected') {
-    statusEl.classList.add('is-connected');
-    statusIcon.classList.add('is-connected');
-    statusTitle.textContent = 'Streamer.bot';
-    statusTxt.textContent   = 'Connected';
-    if (subEl) subEl.textContent = 'Receiving events ✓';
-    setTimeout(() => statusEl.classList.add('hidden'), 3500);
+    statusDot.classList.add('connected');
+    statusTxt.textContent = 'Connected ✓';
+    setTimeout(() => statusEl.classList.add('hidden'), 3000);
   } else if (state === 'auth') {
-    statusTitle.textContent = 'Streamer.bot';
-    statusTxt.textContent   = 'Authenticating…';
-    if (subEl) subEl.textContent = 'Verifying password';
-  } else if (state === 'disconnected') {
-    statusEl.classList.add('is-error');
-    statusIcon.classList.add('is-error');
-    statusTitle.textContent = 'Streamer.bot';
-    statusTxt.textContent   = 'Disconnected';
-    if (subEl) subEl.textContent = 'Retrying in 5 seconds…';
+    statusTxt.textContent = 'Authenticating…';
   } else {
-    statusTitle.textContent = 'Streamer.bot';
-    statusTxt.textContent   = 'Connecting…';
-    if (subEl) subEl.textContent = `${cfg.wsHost}:${cfg.wsPort}`;
+    statusTxt.textContent = 'Connecting to Streamer.bot…';
   }
 }
 
@@ -418,7 +396,7 @@ function handleEvent(data) {
       case 'ReSub':           return cfg.showEvents && cfg.evSub    && onReSub(d);
       case 'GiftSub':         return cfg.showEvents && cfg.evGift   && onGiftSub(d);
       case 'GiftBomb':        return cfg.showEvents && cfg.evGift   && onGiftBomb(d);
-      case 'Cheer':           return cfg.showEvents && cfg.evCheer && onCheer(d);
+      case 'Cheer':           return cfg.showEvents && (cfg.evCheer || cfg.evBitsCombo) && onCheer(d);
       case 'Follow':          return cfg.showEvents && cfg.evFollow  && onFollow(d);
       case 'Raid':            return cfg.showEvents && cfg.evRaid    && onRaid(d);
       case 'HypeTrainStart':  return onHypeStart(d);
@@ -453,32 +431,58 @@ function handleEvent(data) {
 // d.message.firstMessage = boolean (not isFirstMessage)
 // ═══════════════════════════════════════════════════
 function extractUser(d) {
-  // Standard SB 0.2.x structure: d.user object
+  let result;
+
+  // Standard SB 0.2.x structure: d.user object (used by ChatMessage, Sub, ReSub, Cheer, etc.)
   if (d?.user) {
     const u = d.user;
-    return {
-      id:          u.id          || '',
-      displayName: u.name        || u.login || u.displayName || 'Unknown',
-      login:       u.login       || u.name  || '',
+    result = {
+      id:          u.id          || u.userId     || '',
+      displayName: u.name        || u.displayName || u.login || u.userName || u.username || '',
+      login:       u.login       || u.userLogin   || u.name  || u.userName || u.username  || '',
       avatarUrl:   u.profileImageUrl || u.profile_image_url || '',
       color:       u.color       || null,
       role:        u.role        ?? -1,   // enum number
       subscribed:  u.subscribed  ?? false,
     };
-  }
-  // Fallback: old SB or flat structure
-  const src = (typeof d?.message === 'object' && d.message) ? d.message : (d || {});
-  return {
-    id:          src.userId    || d?.userId    || '',
-    displayName: src.displayName || src.username || d?.displayName || d?.username || 'Unknown',
-    login:       src.username  || src.login    || d?.username     || d?.login    || '',
-    avatarUrl:   src.profileImageUrl           || d?.profileImageUrl || '',
-    color:       src.color     || d?.color     || null,
-    role:        -1,
-    subscribed:  src.subscriber || src.isSubscribed || false,
-  };
-}
+  } else {
+    // Some events don't wrap the user under "user" — e.g. Follow comes from Twitch
+    // EventSub rather than a chat notice, so it may not carry badges/color/subscriber
+    // info and may use a different wrapper key or no wrapper at all.
+    const alt = d?.follower || d?.raider || d?.gifter || null;
+    const src = alt || ((typeof d?.message === 'object' && d.message) ? d.message : (d || {}));
 
+    const displayName =
+         src.name || src.displayName || src.userName || src.username
+      || d?.displayName || d?.userName || d?.username || d?.name || '';
+    const login =
+         src.login || src.userLogin || src.username || src.userName
+      || d?.login || d?.userLogin || d?.username || d?.userName || '';
+
+    result = {
+      id:          src.id || src.userId || d?.userId || d?.id || '',
+      displayName,
+      login,
+      avatarUrl:   src.profileImageUrl || d?.profileImageUrl || '',
+      color:       src.color || d?.color || null,
+      role:        -1,
+      subscribed:  src.subscriber || src.isSubscriber || src.subscribed || d?.subscribed || false,
+    };
+  }
+
+  // Last-resort defaults — never let displayName end up blank.
+  if (!result.displayName) result.displayName = result.login || 'Unknown';
+  if (!result.login)       result.login       = result.displayName !== 'Unknown' ? result.displayName : '';
+
+  // Surface unresolved users loudly (not gated behind ?debug=true) — this means
+  // none of the known field-name variants matched, so the raw payload printed
+  // below is the fastest way to find the real field name Streamer.bot is sending.
+  if (result.displayName === 'Unknown') {
+    console.warn('[overlay] Could not resolve username from event payload — raw data:', d);
+  }
+
+  return result;
+}
 function extractText(d) {
   // d.text is the top-level shortcut SB provides
   if (d?.text && typeof d.text === 'string') return d.text;
@@ -617,8 +621,9 @@ function onReSub(d) {
 
 function onGiftSub(d) {
   const user      = extractUser(d);
-  const recipient = d.recipient?.name || d.recipient?.login
-    || d.recipientDisplayName || d.recipientUsername || 'someone';
+  const recipient = d.recipient?.name || d.recipient?.displayName || d.recipient?.login
+    || d.recipientDisplayName || d.recipientUserName || d.recipientUsername
+    || d.recipientLogin || 'someone';
   addEventBubble({
     icon: '🎁', type: 'gift', platform: 'twitch',
     username:  user.displayName,
@@ -665,18 +670,13 @@ function onFollow(d) {
 }
 
 function onRaid(d) {
-  // Streamer.bot places the raiding channel under d.from, not d.user
-  const fromUser = d?.from;
-  const displayName = fromUser?.name || fromUser?.login || fromUser?.displayName
-    || d?.raiderName || extractUser(d).displayName;
-  const login     = fromUser?.login || fromUser?.name || d?.raiderLogin || '';
-  const avatarUrl = fromUser?.profileImageUrl || fromUser?.profile_image_url || '';
-  const viewers   = d.viewerCount || d.viewers || d.raiderCount || '?';
+  const user    = extractUser(d);
+  const viewers = d.viewerCount || d.viewers || d.raiderCount || '?';
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
-    username:  displayName,
-    avatarUrl: getAvatarUrl('twitch', login, avatarUrl),
-    title: `${esc(displayName)} is raiding!`,
+    username:  user.displayName,
+    avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
+    title: `${esc(user.displayName)} is raiding!`,
     body:  `Bringing ${viewers} viewers 🚀`,
   });
 }
@@ -765,7 +765,7 @@ async function addChatBubble(msg) {
     <div class="avatar-wrapper">
       <div class="avatar">
         <img src="${avatarUrl}" alt="${esc(msg.username)}" loading="lazy"
-             onerror="this.onerror=null;this.src='${fbAvatar}'" />
+             onerror="if(this.src!=='${fbAvatar}')this.src='${fbAvatar}'" />
       </div>
       ${platformHtml}
     </div>
@@ -795,7 +795,7 @@ function addEventBubble(ev) {
     <div class="avatar-wrapper">
       <div class="avatar">
         <img src="${ev.avatarUrl}" alt="${esc(ev.username)}" loading="lazy"
-             onerror="this.onerror=null;this.src='${fbAvatar}'" />
+             onerror="if(this.src!=='${fbAvatar}')this.src='${fbAvatar}'" />
       </div>
       ${cfg.showPlatform ? `<div class="platform-badge"><img class="platform-icon" src="${getPlatformIcon(ev.platform)}" alt="${ev.platform}"/></div>` : ''}
     </div>
