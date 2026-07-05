@@ -58,7 +58,7 @@ const cfg = {
 };
 
 // ═══════════════════════════════════════════════════
-// FONT LOADING 
+// FONT LOADING
 // ═══════════════════════════════════════════════════
 const BUNDLED_FONTS = ['Nunito', 'Fredoka One', 'Comic Neue', 'Patrick Hand'];
 function loadFont(family) {
@@ -474,7 +474,9 @@ function extractUser(d) {
   // that could be a display name, in case SB uses a completely undocumented layout.
   if (!result.displayName && d && typeof d === 'object') {
     const nameLike = ['name','displayName','userName','username','userDisplayName',
-                      'user_name','login','userLogin','user_login','userLoginName','followUserName','followerName'];
+                      'user_name','from_broadcaster_user_name',
+                      'login','userLogin','user_login','from_broadcaster_user_login',
+                      'userLoginName','followUserName','followerName'];
     for (const k of nameLike) {
       if (d[k] && typeof d[k] === 'string') { result.displayName = d[k]; break; }
     }
@@ -685,8 +687,20 @@ function onFollow(d) {
 }
 
 function onRaid(d) {
-  const user    = extractUser(d);
-  const viewers = d.viewerCount || d.viewers || d.raiderCount || '?';
+  // Raid comes from Twitch EventSub channel.raid — fields are snake_case passthrough:
+  // from_broadcaster_user_name / from_broadcaster_user_login / from_broadcaster_user_id
+  const raiderName  = d.from_broadcaster_user_name  || d.from_broadcaster_user_login  || '';
+  const raiderLogin = d.from_broadcaster_user_login  || d.from_broadcaster_user_name   || '';
+  const raiderId    = d.from_broadcaster_user_id     || '';
+
+  // Merge EventSub fields into a synthetic user object so extractUser can also
+  // handle cases where SB wraps it in a d.user block (older SB versions may do this).
+  const syntheticD = raiderName
+    ? { user: { id: raiderId, name: raiderName, login: raiderLogin } }
+    : d;
+  const user    = extractUser(syntheticD);
+  const viewers = d.viewers || d.viewerCount || d.raiderCount || '?';
+
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
     username:  user.displayName,
