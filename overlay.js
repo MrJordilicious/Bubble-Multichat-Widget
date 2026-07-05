@@ -58,7 +58,7 @@ const cfg = {
 };
 
 // ═══════════════════════════════════════════════════
-// FONT LOADING
+// FONT LOADING 
 // ═══════════════════════════════════════════════════
 const BUNDLED_FONTS = ['Nunito', 'Fredoka One', 'Comic Neue', 'Patrick Hand'];
 function loadFont(family) {
