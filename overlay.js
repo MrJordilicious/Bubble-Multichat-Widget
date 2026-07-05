@@ -470,7 +470,22 @@ function extractUser(d) {
     };
   }
 
-  // Last-resort defaults — never let displayName end up blank.
+  // Last-resort: walk every string/number field on d itself looking for something
+  // that could be a display name, in case SB uses a completely undocumented layout.
+  if (!result.displayName && d && typeof d === 'object') {
+    const nameLike = ['name','displayName','userName','username','userDisplayName',
+                      'login','userLogin','userLoginName','followUserName','followerName'];
+    for (const k of nameLike) {
+      if (d[k] && typeof d[k] === 'string') { result.displayName = d[k]; break; }
+    }
+    if (!result.displayName) {
+      for (const k of nameLike) {
+        if (!result.login && d[k] && typeof d[k] === 'string') { result.login = d[k]; break; }
+      }
+    }
+  }
+
+  // Final defaults.
   if (!result.displayName) result.displayName = result.login || 'Unknown';
   if (!result.login)       result.login       = result.displayName !== 'Unknown' ? result.displayName : '';
 
@@ -659,13 +674,31 @@ function onCheer(d) {
 }
 
 function onFollow(d) {
+  // Always log the raw payload — Follow schema is undocumented in SB docs.
+  console.log('[overlay:Follow] raw d =', JSON.stringify(d));
+
   const user = extractUser(d);
+
+  // If we still cannot resolve a name, show the raw payload as a visible
+  // bubble in the overlay itself so no DevTools access is needed.
+  if (user.displayName === 'Unknown') {
+    const rawJson = JSON.stringify(d, null, 2);
+    addEventBubble({
+      icon: '\u{1F50D}', type: 'follow', platform: 'twitch',
+      username:  'DEBUG: Follow payload',
+      avatarUrl: fallbackAvatar('debug'),
+      title: '\u26A0\uFE0F Unknown follower — raw payload:',
+      body:  esc(rawJson.slice(0, 500)),
+    });
+    return;
+  }
+
   addEventBubble({
-    icon: '💜', type: 'follow', platform: 'twitch',
+    icon: '\u{1F49C}', type: 'follow', platform: 'twitch',
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
-    title: `${esc(user.displayName)} just followed!`,
-    body:  'Welcome to the community! 🎉',
+    title: esc(user.displayName) + ' just followed!',
+    body:  'Welcome to the community! \u{1F389}',
   });
 }
 
