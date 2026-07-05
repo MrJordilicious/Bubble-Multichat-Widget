@@ -453,14 +453,14 @@ function extractUser(d) {
     const src = alt || ((typeof d?.message === 'object' && d.message) ? d.message : (d || {}));
 
     const displayName =
-         src.name || src.displayName || src.userName || src.username
-      || d?.displayName || d?.userName || d?.username || d?.name || '';
+         src.name || src.displayName || src.userName || src.user_name || src.username
+      || d?.displayName || d?.userName || d?.user_name || d?.username || d?.name || '';
     const login =
-         src.login || src.userLogin || src.username || src.userName
-      || d?.login || d?.userLogin || d?.username || d?.userName || '';
+         src.login || src.userLogin || src.user_login || src.username || src.userName || src.user_name
+      || d?.login || d?.userLogin || d?.user_login || d?.username || d?.userName || d?.user_name || '';
 
     result = {
-      id:          src.id || src.userId || d?.userId || d?.id || '',
+      id:          src.id || src.userId || src.user_id || d?.userId || d?.user_id || d?.id || '',
       displayName,
       login,
       avatarUrl:   src.profileImageUrl || d?.profileImageUrl || '',
@@ -474,7 +474,7 @@ function extractUser(d) {
   // that could be a display name, in case SB uses a completely undocumented layout.
   if (!result.displayName && d && typeof d === 'object') {
     const nameLike = ['name','displayName','userName','username','userDisplayName',
-                      'login','userLogin','userLoginName','followUserName','followerName'];
+                      'user_name','login','userLogin','user_login','userLoginName','followUserName','followerName'];
     for (const k of nameLike) {
       if (d[k] && typeof d[k] === 'string') { result.displayName = d[k]; break; }
     }
@@ -674,31 +674,13 @@ function onCheer(d) {
 }
 
 function onFollow(d) {
-  // Always log the raw payload — Follow schema is undocumented in SB docs.
-  console.log('[overlay:Follow] raw d =', JSON.stringify(d));
-
   const user = extractUser(d);
-
-  // If we still cannot resolve a name, show the raw payload as a visible
-  // bubble in the overlay itself so no DevTools access is needed.
-  if (user.displayName === 'Unknown') {
-    const rawJson = JSON.stringify(d, null, 2);
-    addEventBubble({
-      icon: '\u{1F50D}', type: 'follow', platform: 'twitch',
-      username:  'DEBUG: Follow payload',
-      avatarUrl: fallbackAvatar('debug'),
-      title: '\u26A0\uFE0F Unknown follower — raw payload:',
-      body:  esc(rawJson.slice(0, 500)),
-    });
-    return;
-  }
-
   addEventBubble({
-    icon: '\u{1F49C}', type: 'follow', platform: 'twitch',
+    icon: '💜', type: 'follow', platform: 'twitch',
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
-    title: esc(user.displayName) + ' just followed!',
-    body:  'Welcome to the community! \u{1F389}',
+    title: `${esc(user.displayName)} just followed!`,
+    body:  'Welcome to the community! 🎉',
   });
 }
 
