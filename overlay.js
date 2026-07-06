@@ -687,19 +687,21 @@ function onFollow(d) {
 }
 
 function onRaid(d) {
-  // Raid comes from Twitch EventSub channel.raid — fields are snake_case passthrough:
-  // from_broadcaster_user_name / from_broadcaster_user_login / from_broadcaster_user_id
-  const raiderName  = d.from_broadcaster_user_name  || d.from_broadcaster_user_login  || '';
-  const raiderLogin = d.from_broadcaster_user_login  || d.from_broadcaster_user_name   || '';
-  const raiderId    = d.from_broadcaster_user_id     || '';
-
-  // Merge EventSub fields into a synthetic user object so extractUser can also
-  // handle cases where SB wraps it in a d.user block (older SB versions may do this).
-  const syntheticD = raiderName
-    ? { user: { id: raiderId, name: raiderName, login: raiderLogin } }
-    : d;
-  const user    = extractUser(syntheticD);
+  console.log('[overlay:Raid] raw d =', JSON.stringify(d));
+  const user    = extractUser(d);
   const viewers = d.viewers || d.viewerCount || d.raiderCount || '?';
+
+  if (user.displayName === 'Unknown') {
+    const rawJson = JSON.stringify(d, null, 2);
+    addEventBubble({
+      icon: '🔍', type: 'raid', platform: 'twitch',
+      username:  'DEBUG: Raid payload',
+      avatarUrl: fallbackAvatar('debug'),
+      title: '⚠️ Unknown raider — raw payload:',
+      body:  esc(rawJson.slice(0, 500)),
+    });
+    return;
+  }
 
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
