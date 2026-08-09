@@ -135,10 +135,22 @@ async function sha256b64(message) {
 
 function tierLabel(tier) {
   const t = String(tier || '1000');
-  if (t === '1000' || t === '1') return 'Tier 1';
+  if (t === '1000' || t === '1' || t === '0') return 'Tier 1'; // '0' = Prime in het (oudere) numerieke tier-enum
   if (t === '2000' || t === '2') return 'Tier 2';
   if (t === '3000' || t === '3') return 'Tier 3';
   return `Tier ${tier}`;
+}
+
+// 'sub_tier' toegevoegd naast 'subTier'/'tier': de reguliere Sub-trigger lijkt sinds
+// Streamer.bot v1.0.7 het tier-veld in snake_case aan te leveren (Twitch's eigen
+// EventSub-veldnaam) i.p.v. het camelCase 'subTier' dat ReSub nog gebruikt - vermoedelijk
+// een restant van de gedeeltelijke System.Text.Json-migratie die de v1.0.7 changelog noemt
+// ("Start migrating from Newtonsoft.Json to System.Text.Json ... first library that got an
+// overhaul was Twitch"). Niet bevestigd via documentatie (voor Sub is er geen gepubliceerd
+// schema op docs.streamer.bot), dus mocht {tier} bij gewone subs alsnog leeg blijven: check
+// de console-log van een Sub-testevent.
+function getTier(d) {
+  return d?.subTier ?? d?.sub_tier ?? d?.tier ?? null;
 }
 
 function getPlatformIcon(platform) {
@@ -449,7 +461,23 @@ function extractUser(d) {
     // Some events don't wrap the user under "user" — e.g. Follow comes from Twitch
     // EventSub rather than a chat notice, so it may not carry badges/color/subscriber
     // info and may use a different wrapper key or no wrapper at all.
-    const alt = d?.follower || d?.raider || d?.gifter || null;
+    //
+    // 'targetUser' toegevoegd: sinds Streamer.bot v1.0.5+/v1.0.7 levert de Follow-trigger
+    // de gebruiker niet meer onder 'user', maar onder een apart 'targetUser'-object aan
+    // (bevestigd via docs.streamer.bot/api/websocket/events/twitch/follow — de v1.0.7
+    // changelog noemt expliciet "update Websocket payload" voor de Follow-trigger).
+    // Dit was nog niet opgenomen hier, dus Follow-events toonden hier vermoedelijk ook al
+    // "Unknown" vóór dit werd gemeld — de bestaande fallback-scan verderop in deze functie
+    // (hieronder) had dit niet kunnen vangen omdat die alleen platte string/number-velden
+    // op 'd' zelf bekijkt, geen geneste objecten zoals targetUser.
+    //
+    // Raid heeft GEEN gepubliceerd schema op docs.streamer.bot ("No Schema Available"),
+    // dus 'targetUser' is hier ook toegevoegd als educated guess (Raid is qua opzet het
+    // dichtste EventSub-neefje van Follow: beide zijn kanaal-events zonder chatbericht).
+    // Niet bevestigd. Zie de debug-uitvoer in onRaid() hieronder — als daar na deze fix nog
+    // steeds "Unknown" verschijnt, geeft die debug-bubble de ruwe payload zodat de echte
+    // veldnaam alsnog kan worden toegevoegd.
+    const alt = d?.follower || d?.raider || d?.gifter || d?.targetUser || null;
     const src = alt || ((typeof d?.message === 'object' && d.message) ? d.message : (d || {}));
 
     const displayName =
@@ -619,7 +647,7 @@ function onSub(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} just subscribed!`,
-    body:  `${tierLabel(d.subTier || d.tier)}${d.isPrime ? ' (Prime)' : ''}${text ? ` · "${esc(text)}"` : ''}`,
+    body:  `${tierLabel(getTier(d))}${d.isPrime ? ' (Prime)' : ''}${text ? ` · "${esc(text)}"` : ''}`,
   });
 }
 
@@ -632,7 +660,7 @@ function onReSub(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} resubscribed!`,
-    body:  `${tierLabel(d.subTier || d.tier)} · ${months} months${text ? ` · "${esc(text)}"` : ''}`,
+    body:  `${tierLabel(getTier(d))} · ${months} months${text ? ` · "${esc(text)}"` : ''}`,
   });
 }
 
@@ -646,7 +674,7 @@ function onGiftSub(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} gifted a sub!`,
-    body:  `To ${esc(recipient)} · ${tierLabel(d.subTier || d.tier)}`,
+    body:  `To ${esc(recipient)} · ${tierLabel(getTier(d))}`,
   });
 }
 
@@ -658,7 +686,7 @@ function onGiftBomb(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} gifted ${qty} subs!`,
-    body:  `${tierLabel(d.subTier || d.tier)} · Total given: ${d.totalGifts ?? '?'}`,
+    body:  `${tierLabel(getTier(d))} · Total given: ${d.totalGifts ?? '?'}`,
   });
 }
 
