@@ -135,22 +135,10 @@ async function sha256b64(message) {
 
 function tierLabel(tier) {
   const t = String(tier || '1000');
-  if (t === '1000' || t === '1' || t === '0') return 'Tier 1'; // '0' = Prime in het (oudere) numerieke tier-enum
+  if (t === '1000' || t === '1') return 'Tier 1';
   if (t === '2000' || t === '2') return 'Tier 2';
   if (t === '3000' || t === '3') return 'Tier 3';
   return `Tier ${tier}`;
-}
-
-// 'sub_tier' toegevoegd naast 'subTier'/'tier': de reguliere Sub-trigger lijkt sinds
-// Streamer.bot v1.0.7 het tier-veld in snake_case aan te leveren (Twitch's eigen
-// EventSub-veldnaam) i.p.v. het camelCase 'subTier' dat ReSub nog gebruikt - vermoedelijk
-// een restant van de gedeeltelijke System.Text.Json-migratie die de v1.0.7 changelog noemt
-// ("Start migrating from Newtonsoft.Json to System.Text.Json ... first library that got an
-// overhaul was Twitch"). Niet bevestigd via documentatie (voor Sub is er geen gepubliceerd
-// schema op docs.streamer.bot), dus mocht {tier} bij gewone subs alsnog leeg blijven: check
-// de console-log van een Sub-testevent.
-function getTier(d) {
-  return d?.subTier ?? d?.sub_tier ?? d?.tier ?? null;
 }
 
 function getPlatformIcon(platform) {
@@ -443,91 +431,32 @@ function handleEvent(data) {
 // d.message.firstMessage = boolean (not isFirstMessage)
 // ═══════════════════════════════════════════════════
 function extractUser(d) {
-  let result;
-
-  // Standard SB 0.2.x structure: d.user object (used by ChatMessage, Sub, ReSub, Cheer, etc.)
+  // Standard SB 0.2.x structure: d.user object
   if (d?.user) {
     const u = d.user;
-    result = {
-      id:          u.id          || u.userId     || '',
-      displayName: u.name        || u.displayName || u.login || u.userName || u.username || '',
-      login:       u.login       || u.userLogin   || u.name  || u.userName || u.username  || '',
+    return {
+      id:          u.id          || '',
+      displayName: u.name        || u.login || u.displayName || 'Unknown',
+      login:       u.login       || u.name  || '',
       avatarUrl:   u.profileImageUrl || u.profile_image_url || '',
       color:       u.color       || null,
       role:        u.role        ?? -1,   // enum number
       subscribed:  u.subscribed  ?? false,
     };
-  } else {
-    // Some events don't wrap the user under "user" — e.g. Follow comes from Twitch
-    // EventSub rather than a chat notice, so it may not carry badges/color/subscriber
-    // info and may use a different wrapper key or no wrapper at all.
-    //
-    // 'targetUser' toegevoegd: sinds Streamer.bot v1.0.5+/v1.0.7 levert de Follow-trigger
-    // de gebruiker niet meer onder 'user', maar onder een apart 'targetUser'-object aan
-    // (bevestigd via docs.streamer.bot/api/websocket/events/twitch/follow — de v1.0.7
-    // changelog noemt expliciet "update Websocket payload" voor de Follow-trigger).
-    // Dit was nog niet opgenomen hier, dus Follow-events toonden hier vermoedelijk ook al
-    // "Unknown" vóór dit werd gemeld — de bestaande fallback-scan verderop in deze functie
-    // (hieronder) had dit niet kunnen vangen omdat die alleen platte string/number-velden
-    // op 'd' zelf bekijkt, geen geneste objecten zoals targetUser.
-    //
-    // Raid heeft GEEN gepubliceerd schema op docs.streamer.bot ("No Schema Available"),
-    // dus 'targetUser' is hier ook toegevoegd als educated guess (Raid is qua opzet het
-    // dichtste EventSub-neefje van Follow: beide zijn kanaal-events zonder chatbericht).
-    // Niet bevestigd. Zie de debug-uitvoer in onRaid() hieronder — als daar na deze fix nog
-    // steeds "Unknown" verschijnt, geeft die debug-bubble de ruwe payload zodat de echte
-    // veldnaam alsnog kan worden toegevoegd.
-    const alt = d?.follower || d?.raider || d?.gifter || d?.targetUser || null;
-    const src = alt || ((typeof d?.message === 'object' && d.message) ? d.message : (d || {}));
-
-    const displayName =
-         src.name || src.displayName || src.userName || src.user_name || src.username
-      || d?.displayName || d?.userName || d?.user_name || d?.username || d?.name || '';
-    const login =
-         src.login || src.userLogin || src.user_login || src.username || src.userName || src.user_name
-      || d?.login || d?.userLogin || d?.user_login || d?.username || d?.userName || d?.user_name || '';
-
-    result = {
-      id:          src.id || src.userId || src.user_id || d?.userId || d?.user_id || d?.id || '',
-      displayName,
-      login,
-      avatarUrl:   src.profileImageUrl || d?.profileImageUrl || '',
-      color:       src.color || d?.color || null,
-      role:        -1,
-      subscribed:  src.subscriber || src.isSubscriber || src.subscribed || d?.subscribed || false,
-    };
   }
-
-  // Last-resort: walk every string/number field on d itself looking for something
-  // that could be a display name, in case SB uses a completely undocumented layout.
-  if (!result.displayName && d && typeof d === 'object') {
-    const nameLike = ['name','displayName','userName','username','userDisplayName',
-                      'user_name','from_broadcaster_user_name',
-                      'login','userLogin','user_login','from_broadcaster_user_login',
-                      'userLoginName','followUserName','followerName'];
-    for (const k of nameLike) {
-      if (d[k] && typeof d[k] === 'string') { result.displayName = d[k]; break; }
-    }
-    if (!result.displayName) {
-      for (const k of nameLike) {
-        if (!result.login && d[k] && typeof d[k] === 'string') { result.login = d[k]; break; }
-      }
-    }
-  }
-
-  // Final defaults.
-  if (!result.displayName) result.displayName = result.login || 'Unknown';
-  if (!result.login)       result.login       = result.displayName !== 'Unknown' ? result.displayName : '';
-
-  // Surface unresolved users loudly (not gated behind ?debug=true) — this means
-  // none of the known field-name variants matched, so the raw payload printed
-  // below is the fastest way to find the real field name Streamer.bot is sending.
-  if (result.displayName === 'Unknown') {
-    console.warn('[overlay] Could not resolve username from event payload — raw data:', d);
-  }
-
-  return result;
+  // Fallback: old SB or flat structure
+  const src = (typeof d?.message === 'object' && d.message) ? d.message : (d || {});
+  return {
+    id:          src.userId    || d?.userId    || '',
+    displayName: src.displayName || src.username || d?.displayName || d?.username || 'Unknown',
+    login:       src.username  || src.login    || d?.username     || d?.login    || '',
+    avatarUrl:   src.profileImageUrl           || d?.profileImageUrl || '',
+    color:       src.color     || d?.color     || null,
+    role:        -1,
+    subscribed:  src.subscriber || src.isSubscribed || false,
+  };
 }
+
 function extractText(d) {
   // d.text is the top-level shortcut SB provides
   if (d?.text && typeof d.text === 'string') return d.text;
@@ -647,7 +576,7 @@ function onSub(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} just subscribed!`,
-    body:  `${tierLabel(getTier(d))}${d.isPrime ? ' (Prime)' : ''}${text ? ` · "${esc(text)}"` : ''}`,
+    body:  `${tierLabel(d.subTier || d.tier)}${d.isPrime ? ' (Prime)' : ''}${text ? ` · "${esc(text)}"` : ''}`,
   });
 }
 
@@ -660,21 +589,20 @@ function onReSub(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} resubscribed!`,
-    body:  `${tierLabel(getTier(d))} · ${months} months${text ? ` · "${esc(text)}"` : ''}`,
+    body:  `${tierLabel(d.subTier || d.tier)} · ${months} months${text ? ` · "${esc(text)}"` : ''}`,
   });
 }
 
 function onGiftSub(d) {
   const user      = extractUser(d);
-  const recipient = d.recipient?.name || d.recipient?.displayName || d.recipient?.login
-    || d.recipientDisplayName || d.recipientUserName || d.recipientUsername
-    || d.recipientLogin || 'someone';
+  const recipient = d.recipient?.name || d.recipient?.login
+    || d.recipientDisplayName || d.recipientUsername || 'someone';
   addEventBubble({
     icon: '🎁', type: 'gift', platform: 'twitch',
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} gifted a sub!`,
-    body:  `To ${esc(recipient)} · ${tierLabel(getTier(d))}`,
+    body:  `To ${esc(recipient)} · ${tierLabel(d.subTier || d.tier)}`,
   });
 }
 
@@ -686,7 +614,7 @@ function onGiftBomb(d) {
     username:  user.displayName,
     avatarUrl: getAvatarUrl('twitch', user.login, user.avatarUrl),
     title: `${esc(user.displayName)} gifted ${qty} subs!`,
-    body:  `${tierLabel(getTier(d))} · Total given: ${d.totalGifts ?? '?'}`,
+    body:  `${tierLabel(d.subTier || d.tier)} · Total given: ${d.totalGifts ?? '?'}`,
   });
 }
 
@@ -715,22 +643,8 @@ function onFollow(d) {
 }
 
 function onRaid(d) {
-  console.log('[overlay:Raid] raw d =', JSON.stringify(d));
   const user    = extractUser(d);
-  const viewers = d.viewers || d.viewerCount || d.raiderCount || '?';
-
-  if (user.displayName === 'Unknown') {
-    const rawJson = JSON.stringify(d, null, 2);
-    addEventBubble({
-      icon: '🔍', type: 'raid', platform: 'twitch',
-      username:  'DEBUG: Raid payload',
-      avatarUrl: fallbackAvatar('debug'),
-      title: '⚠️ Unknown raider — raw payload:',
-      body:  esc(rawJson.slice(0, 500)),
-    });
-    return;
-  }
-
+  const viewers = d.viewerCount || d.viewers || d.raiderCount || '?';
   addEventBubble({
     icon: '🚀', type: 'raid', platform: 'twitch',
     username:  user.displayName,
@@ -776,16 +690,32 @@ function onYTMember(d, isMilestone) {
 // ═══════════════════════════════════════════════════
 let hypeTimer;
 
-function onHypeStart(d)  { if (!cfg.showHypeTrain) return; hypeEl.classList.remove('hidden'); _updateHype(d?.level||1, d?.total||0, d?.goal||1500); }
-function onHypeUpdate(d) { if (!cfg.showHypeTrain) return; hypeEl.classList.remove('hidden'); _updateHype(d?.level||1, d?.total||0, d?.goal||1500); }
+// Streamer.bot's Hype Train events (Start/Update/End) expose `percent` (0-100)
+// and `percentDecimal` (0-1) — the progress of the CURRENT level, already
+// computed server-side by Streamer.bot. There is no `total`/`goal` field on
+// these events (that was a mistaken assumption); `total` always came back
+// undefined, so the bar was silently falling back to a hardcoded 1500 goal
+// while the (also wrong) total kept climbing across levels — that's why it
+// was hitting 100% way too early. Use percent/percentDecimal directly, with
+// a total/goal fallback only in case a future/older SB version differs.
+function getHypePercent(d) {
+  if (typeof d?.percent === 'number')        return Math.max(0, Math.min(100, d.percent));
+  if (typeof d?.percentDecimal === 'number') return Math.max(0, Math.min(100, d.percentDecimal * 100));
+  const total = d?.total ?? d?.progress ?? 0;
+  const goal  = d?.goal ?? 1500;
+  return Math.max(0, Math.min(100, Math.round((total / (goal || 1)) * 100)));
+}
+
+function onHypeStart(d)  { if (!cfg.showHypeTrain) return; hypeEl.classList.remove('hidden'); _updateHype(d?.level||1, getHypePercent(d)); }
+function onHypeUpdate(d) { if (!cfg.showHypeTrain) return; hypeEl.classList.remove('hidden'); _updateHype(d?.level||1, getHypePercent(d)); }
 function onHypeEnd(d) {
   if (!cfg.showHypeTrain) return;
   clearTimeout(hypeTimer);
-  _updateHype(d?.level||1, d?.total||0, d?.total||1);
+  _updateHype(d?.level||1, getHypePercent(d));
   hypeTimer = setTimeout(() => hypeEl.classList.add('hidden'), 6000);
 }
-function _updateHype(level, total, goal) {
-  const pct = Math.min(100, Math.round((total / (goal || 1)) * 100));
+function _updateHype(level, pct) {
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
   hypeLvl.textContent = `HYPE TRAIN LEVEL ${level}`;
   hypePct.textContent = `${pct}%`;
   hypeBar.style.width = `${pct}%`;
@@ -908,12 +838,13 @@ window.addEventListener('message', (e) => {
   if (!cmd) return;
   if (cmd === 'testHype') {
     let level = 1, prog = 0;
+    const goal = 1500;
     hypeEl.classList.remove('hidden');
-    _updateHype(1, 0, 1500);
+    _updateHype(1, 0);
     const iv = setInterval(() => {
       prog += 180;
-      if (prog >= 1500) { prog -= 1500; level++; if (level > 5) { clearInterval(iv); onHypeEnd({ level:5, total:1500 }); return; } }
-      _updateHype(level, prog, 1500);
+      if (prog >= goal) { prog -= goal; level++; if (level > 5) { clearInterval(iv); onHypeEnd({ level:5, percent:100 }); return; } }
+      _updateHype(level, (prog / goal) * 100);
     }, 250);
   }
   if (cmd === 'testEvent') {
